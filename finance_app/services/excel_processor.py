@@ -163,19 +163,25 @@ class ExcelProcessor:
             wb = openpyxl.load_workbook(path, data_only=True)
 
             if sheet_name not in wb.sheetnames:
-                raise ExcelProcessingError(f"工作表 '{sheet_name}' 不存在")
+                available_sheets = ", ".join(wb.sheetnames)
+                raise ExcelProcessingError(
+                    f"Excel文件中找不到工作表「{sheet_name}」，可用的工作表有：{available_sheets}"
+                )
 
             sheet = wb[sheet_name]
 
-            for row in sheet.iter_rows(
-                min_row=start_row, values_only=True, max_col=max_col
+            for row_index, row in enumerate(
+                sheet.iter_rows(min_row=start_row, values_only=True, max_col=max_col),
+                start=start_row,
             ):
                 if row[0] is None:
                     continue
                 result.append(row)
 
             if len(result) == 0:
-                self.logger.warning(f"工作表 '{sheet_name}' 中没有数据")
+                self.logger.warning(
+                    f"工作表「{sheet_name}」中没有有效数据，请检查第{start_row}行及以后是否有数据"
+                )
                 return []
 
             # 映射字段名
@@ -196,8 +202,12 @@ class ExcelProcessor:
             wb.close()
             return mapped_result
 
+        except ExcelProcessingError:
+            raise  # 重新抛出自定义异常
         except Exception as e:
-            raise ExcelProcessingError(f"解析Excel文件错误: {str(e)}")
+            raise ExcelProcessingError(
+                f"读取Excel文件时发生错误：{str(e)}，请检查文件格式是否正确"
+            )
 
     def supplier_parse_helper(
         self,
@@ -215,7 +225,10 @@ class ExcelProcessor:
             wb = openpyxl.load_workbook(path, data_only=True)
 
             if sheet_name not in wb.sheetnames:
-                raise ExcelProcessingError(f"工作表 '{sheet_name}' 不存在")
+                available_sheets = ", ".join(wb.sheetnames)
+                raise ExcelProcessingError(
+                    f"Excel文件中找不到供应商配置工作表「{sheet_name}」，可用的工作表有：{available_sheets}"
+                )
 
             sheet = wb[sheet_name]
 
@@ -228,7 +241,9 @@ class ExcelProcessor:
                 result.append(row)
 
             if len(result) == 0:
-                self.logger.warning(f"供应商工作表 '{sheet_name}' 中没有匹配的数据")
+                self.logger.warning(
+                    f"供应商配置工作表「{sheet_name}」中没有匹配的数据，请检查供应商配置是否正确"
+                )
                 return []
 
             # 映射字段名
@@ -285,7 +300,9 @@ class ExcelProcessor:
     def get_fee_by_remark2(self, remark2: str) -> float:
         """从备注2中提取费用"""
         if not remark2:
-            raise ExcelProcessingError("请检查有定价的项目 备注2是否填写")
+            raise ExcelProcessingError(
+                "「备注2」列为空，有定价项目必须填写备注2（格式：金额+说明，如：1000+设计费）"
+            )
 
         fee = 0
         try:
@@ -294,7 +311,9 @@ class ExcelProcessor:
                 fee = remark2.split("+")[0]
             return float(fee) if fee else 0
         except ValueError:
-            raise ExcelProcessingError(f"备注2格式错误: {remark2}")
+            raise ExcelProcessingError(
+                f"「备注2」格式错误：「{remark2}」，正确格式应为：金额+说明（如：1000+设计费）"
+            )
 
     def append_data(
         self,
@@ -308,10 +327,12 @@ class ExcelProcessor:
 
         for i in range(len(base_data)):
             row = base_data[i]
+            row_number = i + 2  # Excel行号，考虑标题行
             row["supplierStr"] = ""
             row["projectStr"] = ""
 
             # 查找供应商信息
+            supplier_found = False
             for supplier in supplier_data:
                 if supplier.get("shortName") == row.get("supplier"):
                     row["supplierStr"] = (
@@ -320,9 +341,11 @@ class ExcelProcessor:
                         + "---"
                         + supplier.get("name", "")
                     )
+                    supplier_found = True
                     break
 
             # 查找项目信息
+            project_found = False
             for project in project_data:
                 if project.get("shortName") == row.get("project"):
                     row["projectStr"] = (
@@ -331,15 +354,45 @@ class ExcelProcessor:
                         + "---"
                         + project.get("name", "")
                     )
+                    project_found = True
                     break
 
-            # 检查是否找到匹配项
-            if not row["supplierStr"]:
-                error_string = f"找不到供应商: {row.get('supplier', '')}"
+            # 检查是否找到匹配项，提供详细的行号信息
+            if not supplier_found:
+                supplier_value = row.get("supplier", "空值")
+                error_string = f"第{row_number}行「供应商」列：找不到供应商「{supplier_value}」，请检查供应商名称是否在配置表中"
                 cannot_find.append(error_string)
 
-            if not row["projectStr"]:
-                cannot_find.append(f"找不到项目: {row.get('project', '')}")
+            if not project_found:
+                project_value = row.get("project", "空值")
+                error_string = f"第{row_number}行「项目简称」列：找不到项目「{project_value}」，请检查项目名称是否在配置表中"
+                cannot_find.append(error_string)
+
+            # 验证费用类型
+            fee_type = row.get("feeType", "")
+            fee_code = self.get_fee_code(fee_type_data, fee_type)
+            if not fee_code and fee_type:  # 如果费用类型不为空但找不到对应代码
+                error_string = f"第{row_number}行「费用类型」列：找不到费用类型「{fee_type}」，请检查费用类型是否在配置表中"
+                cannot_find.append(error_string)
+
+            # 验证日期格式
+            try:
+                real_date = self.get_real_date(row.get("date"))
+            except Exception as e:
+                error_string = f"第{row_number}行「日期」列：日期格式错误「{row.get('date', '空值')}」，请使用正确的日期格式"
+                cannot_find.append(error_string)
+                continue
+
+            # 验证金额格式
+            try:
+                total_amount = float(row.get("totalAmount", 0))
+                if total_amount <= 0:
+                    error_string = f"第{row_number}行「总金额」列：金额必须大于0，当前值为「{row.get('totalAmount', '空值')}」"
+                    cannot_find.append(error_string)
+            except (ValueError, TypeError):
+                error_string = f"第{row_number}行「总金额」列：金额格式错误「{row.get('totalAmount', '空值')}」，请输入有效的数字"
+                cannot_find.append(error_string)
+                continue
 
             if len(cannot_find) > 0:
                 continue
@@ -354,8 +407,7 @@ class ExcelProcessor:
                 pay_company, DEFAULT_BANK_ACCOUNT
             )
 
-            row["feeCode"] = self.get_fee_code(fee_type_data, row.get("feeType", ""))
-            real_date = self.get_real_date(row.get("date"))
+            row["feeCode"] = fee_code  # 使用前面验证过的费用代码
             row["FDate"] = real_date.strftime("%Y-%m-%d")
             row["FYear"] = real_date.strftime("%Y")
             row["FPeriod"] = real_date.strftime("%m")
@@ -366,14 +418,25 @@ class ExcelProcessor:
             if "全款" in payment_type:
                 row["paymentType"] = "full"
 
-            real_tax = self.get_real_tax(row)
-            row["realTax"] = real_tax
-            row["remain"] = float(row.get("totalAmount", 0)) - real_tax
+            try:
+                real_tax = self.get_real_tax(row)
+                row["realTax"] = real_tax
+                row["remain"] = float(row.get("totalAmount", 0)) - real_tax
+            except ExcelProcessingError as e:
+                error_string = f"第{row_number}行：{str(e)}"
+                cannot_find.append(error_string)
+                continue
+            except Exception as e:
+                error_string = f"第{row_number}行「税费」计算错误：{str(e)}"
+                cannot_find.append(error_string)
+                continue
 
         if len(cannot_find) > 0:
-            raise ExcelProcessingError(
-                f"请检查项目或供应商是否正确: {', '.join(cannot_find)}"
-            )
+            error_summary = f"Excel文件数据验证失败，发现 {len(cannot_find)} 个错误：\n"
+            for i, error in enumerate(cannot_find, 1):
+                error_summary += f"{i}. {error}\n"
+            error_summary += "\n请修正上述错误后重新上传文件。"
+            raise ExcelProcessingError(error_summary)
 
         return base_data
 
@@ -696,6 +759,10 @@ class ExcelProcessor:
             self.logger.info(f"Excel文件处理完成: {output_path}")
             return output_path, len(processed_data)
 
+        except ExcelProcessingError:
+            raise  # 重新抛出带有详细信息的自定义异常
         except Exception as e:
-            self.logger.error(f"处理Excel文件时发生错误: {str(e)}")
-            raise ExcelProcessingError(f"处理Excel文件失败: {str(e)}")
+            self.logger.error(f"处理Excel文件时发生未知错误: {str(e)}")
+            raise ExcelProcessingError(
+                f"处理Excel文件失败，错误详情：{str(e)}，请检查文件格式或联系技术支持"
+            )
