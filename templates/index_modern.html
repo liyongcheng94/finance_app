@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>财务Excel处理系统</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --primary-dark: #1d4ed8;
+        --success-color: #059669;
+        --warning-color: #d97706;
+        --danger-color: #dc2626;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-600: #4b5563;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --gray-900: #111827;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        margin: 0;
+        color: var(--gray-800);
+      }
+
+      .main-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: var(--shadow-xl);
+        margin: 2rem auto;
+        max-width: 900px;
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
+          repeat;
+      }
+
+      .header h1 {
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .header p {
+        position: relative;
+        z-index: 1;
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1rem;
+        font-weight: 400;
+      }
+
+      .content {
+        padding: 2rem;
+      }
+
+      .upload-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .upload-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+      }
+
+      .upload-area {
+        border: 3px dashed var(--gray-300);
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        background: var(--gray-50);
+        margin: 1.5rem;
+      }
+
+      .upload-area:hover,
+      .upload-area.dragover {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(59, 130, 246, 0.05));
+        transform: scale(1.02);
+      }
+
+      .upload-area.dragover {
+        border-color: var(--success-color);
+        background: linear-gradient(135deg, rgba(5, 150, 105, 0.05), rgba(16, 185, 129, 0.05));
+      }
+
+      .upload-icon {
+        font-size: 4rem;
+        color: var(--gray-400);
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .upload-area:hover .upload-icon {
+        color: var(--primary-color);
+        transform: scale(1.1);
+      }
+
+      .upload-text {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: 0.5rem;
+      }
+
+      .upload-hint {
+        color: var(--gray-500);
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .upload-btn {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        border: none;
+        border-radius: 12px;
+        color: white;
+        padding: 0.875rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .status-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        display: none;
+      }
+
+      .status-card.show {
+        display: block;
+        animation: slideInUp 0.5s ease;
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .status-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--gray-200);
+      }
+
+      .status-content {
+        padding: 1.5rem;
+      }
+
+      .processing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--gray-200);
+        border-top: 3px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .log-container {
+        background: var(--gray-50);
+        border-radius: 8px;
+        padding: 1rem;
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: 'Fira Code', 'Monaco', 'Courier New', monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+      }
+
+      .log-entry {
+        margin-bottom: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+
+      .log-entry:hover {
+        background: white;
+      }
+
+      .log-entry.info {
+        color: var(--success-color);
+        border-left: 3px solid var(--success-color);
+      }
+
+      .log-entry.error {
+        color: var(--danger-color);
+        background: rgba(220, 38, 38, 0.05);
+        border-left: 3px solid var(--danger-color);
+      }
+
+      .log-entry.warning {
+        color: var(--warning-color);
+        border-left: 3px solid var(--warning-color);
+      }
+
+      .result-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 1.5rem;
+      }
+
+      .btn-modern {
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+        font-size: 0.95rem;
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, var(--success-color), #047857);
+        color: white;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        color: white;
+      }
+
+      .btn-outline {
+        background: white;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .btn-outline:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .alert-modern {
+        border-radius: 12px;
+        border: none;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .alert-danger {
+        background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(239, 68, 68, 0.1));
+        color: var(--danger-color);
+        border-left: 4px solid var(--danger-color);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .stat-item {
+        background: var(--gray-50);
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
+
+      .stat-label {
+        color: var(--gray-600);
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+      }
+
+      .navigation {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+
+      .nav-btn {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        color: var(--gray-700);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-md);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .nav-btn:hover {
+        background: white;
+        color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
+
+      @media (max-width: 768px) {
+        .main-container {
+          margin: 1rem;
+          border-radius: 16px;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .content {
+          padding: 1.5rem;
+        }
+
+        .upload-area {
+          padding: 2rem 1rem;
+          margin: 1rem;
+        }
+
+        .upload-icon {
+          font-size: 3rem;
+        }
+
+        .result-actions {
+          flex-direction: column;
+        }
+
+        .navigation {
+          position: static;
+          margin-bottom: 1rem;
+          text-align: center;
+        }
+
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .header {
+          padding: 1.5rem;
+        }
+
+        .header h1 {
+          font-size: 1.75rem;
+        }
+
+        .upload-area {
+          padding: 1.5rem 0.5rem;
+        }
+
+        .upload-text {
+          font-size: 1.1rem;
+        }
+      }
+
+      /* 加载动画 */
+      .pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 导航栏 -->
+    <div class="navigation">
+      <a href="/history/" class="nav-btn">
+        <i class="bi bi-clock-history"></i>
+        查看历史
+      </a>
+    </div>
+
+    <div class="main-container">
+      <!-- 页面头部 -->
+      <div class="header">
+        <h1>
+          <i class="bi bi-file-earmark-excel me-3"></i>
+          财务Excel处理系统
+        </h1>
+        <p>快速、安全、智能的Excel数据处理平台</p>
+      </div>
+
+      <div class="content">
+        <!-- 文件上传区域 -->
+        <div class="upload-card">
+          <div class="upload-area" id="uploadArea">
+            <i class="bi bi-cloud-upload upload-icon"></i>
+            <div class="upload-text">拖拽Excel文件到这里或点击选择</div>
+            <div class="upload-hint">支持 .xlsx 和 .xls 格式，最大 50MB</div>
+            <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
+            <button
+              type="button"
+              class="upload-btn"
+              onclick="document.getElementById('fileInput').click()"
+            >
+              <i class="bi bi-folder2-open me-2"></i>
+              选择文件
+            </button>
+          </div>
+        </div>
+
+        <!-- 处理状态卡片 -->
+        <div class="status-card" id="processingCard">
+          <div class="status-header">
+            <h5 class="mb-0 d-flex align-items-center">
+              <i class="bi bi-gear-fill text-primary me-2"></i>
+              正在处理您的文件
+            </h5>
+          </div>
+          <div class="status-content">
+            <div class="processing-indicator">
+              <div class="spinner"></div>
+              <div>
+                <div class="fw-semibold">Excel文件解析中...</div>
+                <div class="text-muted" id="processingText">请稍候，这通常需要几秒钟</div>
+              </div>
+            </div>
+            <div class="log-container" id="logContainer">
+              <div class="log-entry info">📤 文件上传成功，开始处理...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 处理结果卡片 -->
+        <div class="status-card" id="resultCard">
+          <div class="status-header">
+            <h5 class="mb-0 d-flex align-items-center">
+              <i class="bi bi-check-circle-fill text-success me-2"></i>
+              处理完成
+            </h5>
+          </div>
+          <div class="status-content">
+            <div class="stats-grid">
+              <div class="stat-item">
+                <div class="stat-value" id="recordCount">0</div>
+                <div class="stat-label">处理记录数</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-value" id="processingTime">0s</div>
+                <div class="stat-label">处理时间</div>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" class="btn-modern btn-success" id="downloadBtn">
+                <i class="bi bi-download"></i>
+                下载结果文件
+              </button>
+              <button type="button" class="btn-modern btn-outline" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i>
+                处理新文件
+              </button>
+              <a href="/history/" class="btn-modern btn-outline">
+                <i class="bi bi-clock-history"></i>
+                查看历史
+              </a>
+            </div>
+
+            <div class="mt-3">
+              <h6 class="fw-semibold mb-2">处理日志</h6>
+              <div class="log-container" id="resultLogContainer"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 错误提示 -->
+        <div class="alert-modern alert-danger d-none" id="errorAlert">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="errorMessage"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentRecordId = null;
+
+      // DOM元素
+      const uploadArea = document.getElementById('uploadArea');
+      const fileInput = document.getElementById('fileInput');
+      const processingCard = document.getElementById('processingCard');
+      const resultCard = document.getElementById('resultCard');
+      const errorAlert = document.getElementById('errorAlert');
+
+      // 初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        setupEventListeners();
+      });
+
+      function setupEventListeners() {
+        // 拖拽事件
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // 文件选择事件
+        fileInput.addEventListener('change', handleFileSelect);
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      }
+
+      function handleDragLeave(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
+        }
+      }
+
+      function handleFileSelect(e) {
+        if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+        }
+      }
+
+      function handleFile(file) {
+        // 验证文件
+        if (!validateFile(file)) {
+          return;
+        }
+
+        // 重置UI状态
+        hideError();
+        resetCards();
+
+        // 显示文件信息
+        updateProcessingText(`正在处理: ${file.name} (${formatFileSize(file.size)})`);
+
+        // 上传文件
+        uploadFile(file);
+      }
+
+      function validateFile(file) {
+        // 检查文件类型
+        const validExtensions = ['.xlsx', '.xls'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+        if (!validExtensions.includes(fileExtension)) {
+          showError('请选择Excel文件格式 (.xlsx, .xls)');
+          return false;
+        }
+
+        // 检查文件大小 (50MB)
+        if (file.size > 50 * 1024 * 1024) {
+          showError('文件大小不能超过50MB');
+          return false;
+        }
+
+        return true;
+      }
+
+      function uploadFile(file) {
+        showProcessing();
+        addLogEntry('info', '📤 开始上传文件...');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/finance/records/upload/', {
+          method: 'POST',
+          body: formData,
+        })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            addLogEntry('info', '✅ 文件上传成功');
+            addLogEntry('info', '🔄 开始解析Excel数据...');
+
+            if (data.status === 'completed') {
+              currentRecordId = data.id;
+              showResult(data);
+              loadLogs(data.id);
+            } else if (data.status === 'failed') {
+              showError(data.error || '处理失败');
+            } else {
+              showError('未知状态: ' + data.status);
+            }
+          })
+          .catch(error => {
+            console.error('Upload error:', error);
+            addLogEntry('error', '❌ 上传失败: ' + error.message);
+            showError('上传失败，请检查网络连接后重试');
+          });
+      }
+
+      function showProcessing() {
+        processingCard.classList.add('show');
+        resultCard.classList.remove('show');
+      }
+
+      function showResult(data) {
+        processingCard.classList.remove('show');
+        resultCard.classList.add('show');
+
+        // 更新统计信息
+        document.getElementById('recordCount').textContent = data.total_records || 0;
+        document.getElementById('processingTime').textContent = data.processing_time
+          ? data.processing_time.toFixed(2) + 's'
+          : '0s';
+
+        // 设置下载按钮
+        document.getElementById('downloadBtn').onclick = () => downloadFile(data.id);
+      }
+
+      function showError(message) {
+        errorAlert.classList.remove('d-none');
+        document.getElementById('errorMessage').textContent = message;
+        processingCard.classList.remove('show');
+        resultCard.classList.remove('show');
+      }
+
+      function hideError() {
+        errorAlert.classList.add('d-none');
+      }
+
+      function resetCards() {
+        processingCard.classList.remove('show');
+        resultCard.classList.remove('show');
+        document.getElementById('logContainer').innerHTML = '';
+      }
+
+      function updateProcessingText(text) {
+        document.getElementById('processingText').textContent = text;
+      }
+
+      function addLogEntry(level, message) {
+        const container = document.getElementById('logContainer');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${level}`;
+        entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        container.appendChild(entry);
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function downloadFile(recordId) {
+        addLogEntry('info', '📥 开始下载文件...');
+        window.open(`/api/finance/records/${recordId}/download/`, '_blank');
+      }
+
+      function loadLogs(recordId) {
+        fetch(`/api/finance/records/${recordId}/logs/`)
+          .then(response => response.json())
+          .then(logs => {
+            const container = document.getElementById('resultLogContainer');
+            container.innerHTML = '';
+            logs.forEach(log => {
+              const entry = document.createElement('div');
+              entry.className = `log-entry ${log.level.toLowerCase()}`;
+              entry.textContent = `[${log.timestamp_display}] ${log.level}: ${log.message}`;
+              container.appendChild(entry);
+            });
+          })
+          .catch(error => {
+            console.error('Error loading logs:', error);
+          });
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+    </script>
+  </body>
+</html>

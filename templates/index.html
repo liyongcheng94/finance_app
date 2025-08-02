@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>财务Excel处理系统</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <style>
+      .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 3rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      .upload-area:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+      }
+      .upload-area.dragover {
+        border-color: #0d6efd;
+        background-color: #e7f3ff;
+      }
+      .processing {
+        display: none;
+      }
+      .result {
+        display: none;
+      }
+      .log-container {
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        padding: 1rem;
+      }
+      .log-entry {
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+      }
+      .log-entry.error {
+        color: #dc3545;
+      }
+      .log-entry.info {
+        color: #198754;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <div class="row">
+        <div class="col-md-12">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">
+              <i class="bi bi-file-earmark-excel text-success me-2"></i>
+              财务Excel处理系统
+            </h1>
+            <a href="/history/" class="btn btn-outline-primary">
+              <i class="bi bi-clock-history me-1"></i>
+              查看历史
+            </a>
+          </div>
+
+          <!-- 上传区域 -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-cloud-upload me-2"></i>
+                文件上传
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="upload-area" id="uploadArea">
+                <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
+                <h5>拖拽Excel文件到这里或点击选择文件</h5>
+                <p class="text-muted">支持 .xlsx 和 .xls 格式，最大50MB</p>
+                <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="document.getElementById('fileInput').click()"
+                >
+                  <i class="bi bi-folder2-open me-1"></i>
+                  选择文件
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 处理进度 -->
+          <div class="card mb-4 processing" id="processingCard">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-gear-fill text-primary me-2"></i>
+                处理中...
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3" role="status">
+                  <span class="visually-hidden">处理中...</span>
+                </div>
+                <div>
+                  <div class="fw-bold">正在处理Excel文件</div>
+                  <div class="text-muted" id="processingText">请稍候...</div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="log-container" id="logContainer">
+                  <div class="log-entry info">文件上传成功...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 处理结果 -->
+          <div class="card result" id="resultCard">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                处理完成
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-file-earmark-check text-success me-2"></i>
+                    <div>
+                      <div class="fw-bold">处理成功</div>
+                      <div class="text-muted" id="resultText">共处理 0 条记录</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6 text-end">
+                  <button type="button" class="btn btn-success" id="downloadBtn">
+                    <i class="bi bi-download me-1"></i>
+                    下载结果文件
+                  </button>
+                  <button type="button" class="btn btn-primary ms-2" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    重新处理
+                  </button>
+                </div>
+              </div>
+              <div class="mt-3">
+                <h6>处理日志：</h6>
+                <div class="log-container" id="resultLogContainer"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 错误信息 -->
+          <div class="alert alert-danger d-none" id="errorAlert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="errorMessage"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentRecordId = null;
+
+      // 文件上传处理
+      const uploadArea = document.getElementById('uploadArea');
+      const fileInput = document.getElementById('fileInput');
+      const processingCard = document.getElementById('processingCard');
+      const resultCard = document.getElementById('resultCard');
+      const errorAlert = document.getElementById('errorAlert');
+
+      // 拖拽事件
+      uploadArea.addEventListener('dragover', e => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
+        }
+      });
+
+      uploadArea.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', e => {
+        if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      function handleFile(file) {
+        // 验证文件类型
+        if (
+          !file.name.toLowerCase().endsWith('.xlsx') &&
+          !file.name.toLowerCase().endsWith('.xls')
+        ) {
+          showError('请选择Excel文件格式 (.xlsx, .xls)');
+          return;
+        }
+
+        // 验证文件大小
+        if (file.size > 50 * 1024 * 1024) {
+          showError('文件大小不能超过50MB');
+          return;
+        }
+
+        uploadFile(file);
+      }
+
+      function uploadFile(file) {
+        hideError();
+        showProcessing();
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/finance/records/upload/', {
+          method: 'POST',
+          body: formData,
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'completed') {
+              currentRecordId = data.id;
+              showResult(data);
+              loadLogs(data.id);
+            } else if (data.status === 'failed') {
+              showError(data.error || '处理失败');
+            } else {
+              showError('未知错误');
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            showError('上传失败，请重试');
+          });
+      }
+
+      function showProcessing() {
+        processingCard.style.display = 'block';
+        resultCard.style.display = 'none';
+      }
+
+      function showResult(data) {
+        processingCard.style.display = 'none';
+        resultCard.style.display = 'block';
+
+        document.getElementById('resultText').textContent = `共处理 ${
+          data.total_records
+        } 条记录，耗时 ${data.processing_time.toFixed(2)} 秒`;
+
+        document.getElementById('downloadBtn').onclick = () => downloadFile(data.id);
+      }
+
+      function showError(message) {
+        errorAlert.classList.remove('d-none');
+        document.getElementById('errorMessage').textContent = message;
+        processingCard.style.display = 'none';
+        resultCard.style.display = 'none';
+      }
+
+      function hideError() {
+        errorAlert.classList.add('d-none');
+      }
+
+      function downloadFile(recordId) {
+        window.open(`/api/finance/records/${recordId}/download/`, '_blank');
+      }
+
+      function loadLogs(recordId) {
+        fetch(`/api/finance/records/${recordId}/logs/`)
+          .then(response => response.json())
+          .then(logs => {
+            const container = document.getElementById('resultLogContainer');
+            container.innerHTML = '';
+            logs.forEach(log => {
+              const entry = document.createElement('div');
+              entry.className = `log-entry ${log.level.toLowerCase()}`;
+              entry.textContent = `[${log.timestamp_display}] ${log.level}: ${log.message}`;
+              container.appendChild(entry);
+            });
+          })
+          .catch(error => {
+            console.error('Error loading logs:', error);
+          });
+      }
+    </script>
+  </body>
+</html>
