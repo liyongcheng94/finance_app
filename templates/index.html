@@ -18,10 +18,10 @@
       .upload-area {
         border: 2px dashed #dee2e6;
         border-radius: 8px;
-        padding: 3rem;
-        text-align: center;
+        padding: 1rem;
         transition: all 0.3s ease;
         cursor: pointer;
+        min-height: auto;
       }
       .upload-area:hover {
         border-color: #0d6efd;
@@ -30,6 +30,26 @@
       .upload-area.dragover {
         border-color: #0d6efd;
         background-color: #e7f3ff;
+      }
+      .upload-area h6 {
+        color: #495057;
+        font-weight: 600;
+      }
+      .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+      }
+      .card-header {
+        background-color: rgba(0, 123, 255, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+      }
+      @media (max-width: 768px) {
+        .upload-area .row {
+          text-align: center;
+        }
+        .upload-area .col-md-4 {
+          margin-top: 1rem;
+        }
       }
       .processing {
         display: none;
@@ -119,20 +139,36 @@
               </div>
               <div class="card-body">
                 <div class="upload-area" id="uploadArea">
-                  <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
-                  <h5>拖拽Excel文件到这里或点击选择文件</h5>
-                  <p class="text-muted">支持 .xlsx 和 .xls 格式，最大50MB</p>
-                  <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
-                  <button
-                    type="button"
-                    class="btn btn-primary"
-                    onclick="document.getElementById('fileInput').click()"
-                  >
-                    <i class="bi bi-folder2-open me-1"></i>
-                    选择文件
-                  </button>
+                  <div class="row align-items-center">
+                    <div class="col-md-8">
+                      <div class="d-flex align-items-center">
+                        <i class="bi bi-cloud-upload text-muted me-3" style="font-size: 2rem"></i>
+                        <div>
+                          <h6 class="mb-1">拖拽Excel文件到这里或点击选择文件</h6>
+                          <small class="text-muted">支持 .xlsx 和 .xls 格式，最大50MB</small>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                      <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
+                      <button
+                        type="button"
+                        class="btn btn-primary"
+                        onclick="document.getElementById('fileInput').click()"
+                      >
+                        <i class="bi bi-folder2-open me-1"></i>
+                        选择文件
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <!-- 错误信息 -->
+            <div class="alert alert-danger d-none" id="errorAlert">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <span id="errorMessage"></span>
             </div>
 
             <!-- 处理进度 -->
@@ -162,7 +198,7 @@
             </div>
 
             <!-- 处理结果 -->
-            <div class="card result" id="resultCard">
+            <div class="card mb-4 result" id="resultCard">
               <div class="card-header">
                 <h5 class="mb-0">
                   <i class="bi bi-check-circle-fill text-success me-2"></i>
@@ -196,12 +232,6 @@
                   <div class="log-container" id="resultLogContainer"></div>
                 </div>
               </div>
-            </div>
-
-            <!-- 错误信息 -->
-            <div class="alert alert-danger d-none" id="errorAlert">
-              <i class="bi bi-exclamation-triangle-fill me-2"></i>
-              <span id="errorMessage"></span>
             </div>
           </div>
         </div>
