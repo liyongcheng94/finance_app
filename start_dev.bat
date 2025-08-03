@@ -1,0 +1,3 @@
+@echo off
+echo Building and starting Finance App in development mode...
+docker-compose -f docker-compose.dev.yml up --build

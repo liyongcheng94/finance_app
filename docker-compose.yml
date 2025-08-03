@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库服务
+  db:
+    image: postgres:15-alpine
+    container_name: finance_app_db
+    environment:
+      POSTGRES_DB: financedb
+      POSTGRES_USER: financeuser
+      POSTGRES_PASSWORD: financepass
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - '5432:5432'
+    networks:
+      - finance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U financeuser -d financedb']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: finance_app_redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - finance_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redispass
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'redispass', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Django Web应用服务
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finance_app_web
+    environment:
+      - DEBUG=0
+      - SECRET_KEY=your-production-secret-key-here-please-change-this
+      - DATABASE_URL=postgresql://financeuser:financepass@db:5432/financedb
+      - REDIS_URL=redis://:redispass@redis:6379/0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - DJANGO_SETTINGS_MODULE=finance_project.settings
+    volumes:
+      - ./django_finance_app/media:/app/media
+      - ./django_finance_app/static:/app/static
+      - ./logs:/app/logs
+    ports:
+      - '8000:8000'
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - finance_network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx反向代理服务（可选，用于生产环境）
+  nginx:
+    image: nginx:alpine
+    container_name: finance_app_nginx
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./django_finance_app/static:/app/static:ro
+      - ./django_finance_app/media:/app/media:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    networks:
+      - finance_network
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  finance_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

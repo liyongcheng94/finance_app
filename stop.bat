@@ -1,0 +1,3 @@
+@echo off
+echo Stopping Finance App...
+docker-compose down

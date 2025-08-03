@@ -1,0 +1,3 @@
+@echo off
+echo Building and starting Finance App in production mode...
+docker-compose up --build
