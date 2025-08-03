@@ -1,5 +1,42 @@
 from django.contrib import admin
-from .models import FinanceRecord, ProcessingLog
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+from .models import FinanceRecord, ProcessingLog, UserProfile
+
+
+class UserProfileInline(admin.StackedInline):
+    """用户扩展信息内联编辑"""
+
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = "用户扩展信息"
+    fields = ("display_name",)
+
+
+class CustomUserAdmin(UserAdmin):
+    """自定义用户管理"""
+
+    inlines = (UserProfileInline,)
+
+    def get_inline_instances(self, request, obj=None):
+        if not obj:
+            return list()
+        return super().get_inline_instances(request, obj)
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    """用户扩展信息管理"""
+
+    list_display = ["user", "display_name", "created_at", "updated_at"]
+    list_filter = ["created_at", "updated_at"]
+    search_fields = ["user__username", "display_name"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+# 重新注册User模型
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
 
 
 @admin.register(FinanceRecord)

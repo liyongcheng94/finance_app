@@ -134,7 +134,7 @@ REIMBURSEMENT_CONFIG = {
     "DEFAULT_VALUES": {
         "FCurrencyNum": "RMB",
         "FCurrencyName": "人民币",
-        "FPreparerID": "陈丽玲",
+        "FPreparerID": "陈丽玲",  # 默认制单人，实际使用时会被动态用户名替换
         "FCheckerID": "NONE",
         "FApproveID": "NONE",
         "FCashierID": "NONE",

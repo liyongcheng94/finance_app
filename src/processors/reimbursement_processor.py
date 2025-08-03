@@ -18,6 +18,7 @@ from models.reimbursement_models import (
     ReimbursementExcelRowData,
 )
 from unified_config import REIMBURSEMENT_CONFIG
+from config import DEFAULT_USERS
 
 
 class ReimbursementProcessor:
@@ -199,7 +200,7 @@ class ReimbursementDataProcessor:
             f_amount_for=reimbursement_data.amount,
             f_debit=reimbursement_data.amount,
             f_credit=0,
-            f_preparer_id="陈丽玲",
+            f_preparer_id=DEFAULT_USERS["PREPARER"],
             f_checker_id="NONE",
             f_approve_id="NONE",
             f_cashier_id="NONE",
@@ -256,7 +257,7 @@ class ReimbursementDataProcessor:
             f_amount_for=reimbursement_data.amount,
             f_debit=0,
             f_credit=reimbursement_data.amount,
-            f_preparer_id="陈丽玲",
+            f_preparer_id=DEFAULT_USERS["PREPARER"],
             f_checker_id="NONE",
             f_approve_id="NONE",
             f_cashier_id="NONE",

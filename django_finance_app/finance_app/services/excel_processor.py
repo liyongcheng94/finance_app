@@ -10,6 +10,8 @@ import json
 import logging
 from typing import List, Dict, Any, Tuple
 from django.conf import settings
+from django.contrib.auth.models import User
+from ..utils import get_prepared_by_display_name
 
 
 # 配置常量
@@ -377,7 +379,9 @@ class ExcelProcessor:
 
         return base_data
 
-    def gen_excel_row(self, row: Dict[str, Any], index: int) -> List[Dict[str, Any]]:
+    def gen_excel_row(
+        self, row: Dict[str, Any], index: int, user: User = None
+    ) -> List[Dict[str, Any]]:
         """生成Excel行数据"""
         # 通用数据
         common_data = {
@@ -388,7 +392,7 @@ class ExcelProcessor:
             "FNumber": index,
             "FCurrencyNum": "RMB",
             "FCurrencyName": "人民币",
-            "FPreparerID": "陈丽玲",
+            "FPreparerID": get_prepared_by_display_name(user),
             "FCheckerID": "NONE",
             "FApproveID": "NONE",
             "FCashierID": "NONE",
@@ -566,14 +570,16 @@ class ExcelProcessor:
 
         return result
 
-    def gen_excel_data(self, data: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    def gen_excel_data(
+        self, data: List[Dict[str, Any]], user: User = None
+    ) -> List[List[Dict[str, Any]]]:
         """生成所有Excel数据"""
         excel_data = []
         index = 0
 
         for row in data:
             index = index + 1
-            excel_data.append(self.gen_excel_row(row, index))
+            excel_data.append(self.gen_excel_row(row, index, user))
 
         return excel_data
 
@@ -628,7 +634,10 @@ class ExcelProcessor:
             raise ExcelProcessingError(f"写入Excel文件错误: {str(e)}")
 
     def process_excel_file(
-        self, file_path: str, process_type: str = "payment"
+        self,
+        file_path: str,
+        process_type: str = "payment",
+        user: User = None,
     ) -> Tuple[str, int]:
         """
         处理Excel文件的主要方法
@@ -636,6 +645,7 @@ class ExcelProcessor:
         Args:
             file_path: 输入Excel文件路径
             process_type: 处理类型 ("payment" 或 "reimbursement")
+            user: Django用户对象，用于获取制单人信息
 
         Returns:
             tuple: (输出文件路径, 处理的记录数)
@@ -643,11 +653,13 @@ class ExcelProcessor:
         self.logger.info(f"开始处理Excel文件: {file_path}, 处理类型: {process_type}")
 
         if process_type == "reimbursement":
-            return self.process_reimbursement_file(file_path)
+            return self.process_reimbursement_file(file_path, user)
         else:
-            return self.process_payment_file(file_path)
+            return self.process_payment_file(file_path, user)
 
-    def process_payment_file(self, file_path: str) -> Tuple[str, int]:
+    def process_payment_file(
+        self, file_path: str, user: User = None
+    ) -> Tuple[str, int]:
         """处理排单文件"""
         self.logger.info(f"开始处理排单Excel文件: {file_path}")
 
@@ -691,7 +703,7 @@ class ExcelProcessor:
             processed_data = self.append_data(
                 base_data, supplier_data, project_data, fee_type_data
             )
-            excel_data = self.gen_excel_data(processed_data)
+            excel_data = self.gen_excel_data(processed_data, user)
 
             # 生成输出文件路径
             now = datetime.datetime.now()
@@ -712,7 +724,9 @@ class ExcelProcessor:
             self.logger.error(f"处理排单Excel文件时发生错误: {str(e)}")
             raise ExcelProcessingError(f"处理排单Excel文件失败: {str(e)}")
 
-    def process_reimbursement_file(self, file_path: str) -> Tuple[str, int]:
+    def process_reimbursement_file(
+        self, file_path: str, user: User = None
+    ) -> Tuple[str, int]:
         """处理报销文件"""
         self.logger.info(f"开始处理报销Excel文件: {file_path}")
 
@@ -728,7 +742,7 @@ class ExcelProcessor:
 
             # 处理报销数据，按报销人分组生成会计分录
             result_data = self.process_reimbursement_data(
-                top_infos, base_data, fee_type_mapping
+                top_infos, base_data, fee_type_mapping, user
             )
 
             # 生成输出文件路径
@@ -893,6 +907,7 @@ class ExcelProcessor:
         top_infos: List[Dict[str, Any]],
         base_data: List[Dict[str, Any]],
         fee_type_mapping: Dict[str, str],
+        user: User = None,
     ) -> List[Dict[str, Any]]:
         """处理报销数据，生成会计分录"""
         try:
@@ -927,7 +942,7 @@ class ExcelProcessor:
 
                     # 生成费用明细的会计分录（借方）
                     single_data = self.gen_reimbursement_debit_row(
-                        item, index, date, person_index, fee_type_mapping
+                        user, item, index, date, person_index, fee_type_mapping
                     )
                     result.extend(single_data)
                     index += 1
@@ -935,7 +950,13 @@ class ExcelProcessor:
                 # 生成银行支付的会计分录（贷方）
                 if total_amount > 0:
                     last_row = self.gen_reimbursement_credit_row(
-                        top_info, base_data, index, date, person_index, total_amount
+                        user,
+                        top_info,
+                        base_data,
+                        index,
+                        date,
+                        person_index,
+                        total_amount,
                     )
                     result.extend(last_row)
 
@@ -948,6 +969,7 @@ class ExcelProcessor:
 
     def gen_reimbursement_debit_row(
         self,
+        user: Any,
         item: Dict[str, Any],
         index: int,
         date: Any,
@@ -966,7 +988,7 @@ class ExcelProcessor:
             "FNumber": person_index,
             "FCurrencyNum": "RMB",
             "FCurrencyName": "人民币",
-            "FPreparerID": "陈丽玲",
+            "FPreparerID": get_prepared_by_display_name(user),
             "FCheckerID": "NONE",
             "FApproveID": "NONE",
             "FCashierID": "NONE",
@@ -1012,6 +1034,7 @@ class ExcelProcessor:
 
     def gen_reimbursement_credit_row(
         self,
+        user: Any,
         top_info: Dict[str, Any],
         base_data: List[Dict[str, Any]],
         index: int,
@@ -1031,7 +1054,7 @@ class ExcelProcessor:
             "FNumber": person_index,
             "FCurrencyNum": "RMB",
             "FCurrencyName": "人民币",
-            "FPreparerID": "陈丽玲",
+            "FPreparerID": get_prepared_by_display_name(user),
             "FCheckerID": "NONE",
             "FApproveID": "NONE",
             "FCashierID": "NONE",

@@ -99,7 +99,7 @@ class ReimbursementExcelRowData:
     f_amount_for: Optional[float] = None
     f_debit: Optional[float] = None
     f_credit: Optional[float] = None
-    f_preparer_id: str = "陈丽玲"
+    f_preparer_id: str = "陈丽玲"  # 默认制单人，实际使用时会被动态用户名替换
     f_checker_id: str = "NONE"
     f_approve_id: str = "NONE"
     f_cashier_id: str = "NONE"

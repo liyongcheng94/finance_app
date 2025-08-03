@@ -10,6 +10,8 @@ import json
 import logging
 from typing import List, Dict, Any, Tuple
 from django.conf import settings
+from django.contrib.auth.models import User
+from ..utils import get_prepared_by_display_name
 
 
 # 配置常量
@@ -440,7 +442,9 @@ class ExcelProcessor:
 
         return base_data
 
-    def gen_excel_row(self, row: Dict[str, Any], index: int) -> List[Dict[str, Any]]:
+    def gen_excel_row(
+        self, row: Dict[str, Any], index: int, user: User = None
+    ) -> List[Dict[str, Any]]:
         """生成Excel行数据"""
         # 通用数据
         common_data = {
@@ -451,7 +455,7 @@ class ExcelProcessor:
             "FNumber": index,
             "FCurrencyNum": "RMB",
             "FCurrencyName": "人民币",
-            "FPreparerID": "陈丽玲",
+            "FPreparerID": get_prepared_by_display_name(user),
             "FCheckerID": "NONE",
             "FApproveID": "NONE",
             "FCashierID": "NONE",
@@ -629,14 +633,16 @@ class ExcelProcessor:
 
         return result
 
-    def gen_excel_data(self, data: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    def gen_excel_data(
+        self, data: List[Dict[str, Any]], user: User = None
+    ) -> List[List[Dict[str, Any]]]:
         """生成所有Excel数据"""
         excel_data = []
         index = 0
 
         for row in data:
             index = index + 1
-            excel_data.append(self.gen_excel_row(row, index))
+            excel_data.append(self.gen_excel_row(row, index, user))
 
         return excel_data
 
@@ -690,7 +696,7 @@ class ExcelProcessor:
         except Exception as e:
             raise ExcelProcessingError(f"写入Excel文件错误: {str(e)}")
 
-    def process_excel_file(self, file_path: str) -> Tuple[str, int]:
+    def process_excel_file(self, file_path: str, user: User = None) -> Tuple[str, int]:
         """
         处理Excel文件的主要方法
 
@@ -742,7 +748,7 @@ class ExcelProcessor:
             processed_data = self.append_data(
                 base_data, supplier_data, project_data, fee_type_data
             )
-            excel_data = self.gen_excel_data(processed_data)
+            excel_data = self.gen_excel_data(processed_data, user)
 
             # 生成输出文件路径
             now = datetime.datetime.now()

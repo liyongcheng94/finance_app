@@ -135,7 +135,7 @@ DEPARTMENT_CONFIG = {"CODE": "02", "NAME": "采购部", "STRING": "部门---02--
 
 # 默认用户配置
 DEFAULT_USERS = {
-    "PREPARER": "陈丽玲",
+    "PREPARER": "陈丽玲",  # 默认制单人，实际使用时会被动态用户名替换
     "CHECKER": "NONE",
     "APPROVE": "NONE",
     "CASHIER": "NONE",

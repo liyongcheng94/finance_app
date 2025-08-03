@@ -4,6 +4,27 @@ from django.contrib.auth.models import User
 import os
 
 
+class UserProfile(models.Model):
+    """用户扩展信息模型"""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="profile", verbose_name="用户账号"
+    )
+    display_name = models.CharField(
+        max_length=50, verbose_name="用户名", help_text="用于显示的用户名称，如：陈丽玲"
+    )
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "user_profiles"
+        verbose_name = "用户扩展信息"
+        verbose_name_plural = "用户扩展信息"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.display_name}"
+
+
 class FinanceRecord(models.Model):
     """财务记录模型"""
 
