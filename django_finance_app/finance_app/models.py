@@ -13,15 +13,27 @@ class FinanceRecord(models.Model):
         ("failed", "失败"),
     ]
 
-    # 用户关联
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, verbose_name="上传用户", null=True, blank=True
-    )
+    PROCESS_TYPE_CHOICES = [
+        ("payment", "排单处理"),
+        ("reimbursement", "报销处理"),
+    ]
 
     # 基本信息
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="finance_records",
+        verbose_name="用户",
+    )
     upload_time = models.DateTimeField(default=timezone.now, verbose_name="上传时间")
     filename = models.CharField(max_length=255, verbose_name="原始文件名")
     file_path = models.FileField(upload_to="uploads/", verbose_name="上传文件路径")
+    process_type = models.CharField(
+        max_length=20,
+        choices=PROCESS_TYPE_CHOICES,
+        default="payment",
+        verbose_name="处理类型",
+    )
 
     # 处理状态
     status = models.CharField(
