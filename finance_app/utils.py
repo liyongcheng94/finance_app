@@ -1,51 +1,69 @@
 """
-实用工具函数
+财务应用工具函数模块
 """
 
-import logging
 from django.contrib.auth.models import User
+from typing import Optional
+import logging
 
 logger = logging.getLogger("finance_app")
 
 
-def get_prepared_by_display_name(user):
+def get_prepared_by_display_name(user: Optional[User] = None) -> str:
     """
-    获取制单人的显示名称
+    获取制单人显示名称
 
     Args:
-        user: Django User对象
+        user: Django用户对象，如果为None则返回默认值
 
     Returns:
-        str: 用户显示名称，优先使用UserProfile中的display_name，
-             如果没有则使用User模型的相关字段，
-             最后回退到默认值
+        str: 用户显示名称，如果没有设置则返回默认值"陈丽玲"
     """
     if not user:
-        logger.warning("用户对象为空，使用默认制单人名称")
+        logger.warning("未提供用户对象，使用默认制单人名称")
         return "陈丽玲"
 
     try:
-        # 优先使用UserProfile中的display_name
-        if (
-            hasattr(user, "userprofile")
-            and user.userprofile
-            and user.userprofile.display_name
-        ):
-            return user.userprofile.display_name
+        # 尝试获取用户扩展信息中的显示名称
+        if hasattr(user, "profile") and user.profile:
+            display_name = user.profile.display_name
+            if display_name and display_name.strip():
+                return display_name.strip()
 
-        # 回退到User模型的字段
-        if user.last_name and user.first_name:
-            return f"{user.last_name}{user.first_name}"
-        elif user.last_name:
-            return user.last_name
-        elif user.first_name:
-            return user.first_name
-        elif user.username:
+        # 如果没有设置显示名称，使用用户名
+        if user.username:
+            logger.info(f"用户 {user.username} 未设置显示名称，使用用户名作为制单人")
             return user.username
-        else:
-            logger.warning(f"用户 {user.id} 没有可用的显示名称字段，使用默认值")
-            return "陈丽玲"
 
     except Exception as e:
-        logger.error(f"获取用户显示名称时发生错误: {str(e)}")
+        logger.warning(
+            f"获取用户 {user.username if user else 'Unknown'} 显示名称时出错: {str(e)}"
+        )
+
+    # 如果都获取不到，返回默认值
+    logger.warning(f"无法获取用户显示名称，使用默认制单人名称")
+    return "陈丽玲"
+
+
+def get_prepared_by_display_name_from_user_id(user_id: Optional[int] = None) -> str:
+    """
+    根据用户ID获取制单人显示名称
+
+    Args:
+        user_id: 用户ID，如果为None则返回默认值
+
+    Returns:
+        str: 用户显示名称，如果没有设置则返回默认值"陈丽玲"
+    """
+    if not user_id:
+        return "陈丽玲"
+
+    try:
+        user = User.objects.select_related("profile").get(id=user_id)
+        return get_prepared_by_display_name(user)
+    except User.DoesNotExist:
+        logger.warning(f"用户ID {user_id} 不存在，使用默认制单人名称")
+        return "陈丽玲"
+    except Exception as e:
+        logger.error(f"根据用户ID {user_id} 获取显示名称时出错: {str(e)}")
         return "陈丽玲"

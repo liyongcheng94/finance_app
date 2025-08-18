@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
-    {% load static %}
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="csrf-token" content="{{ csrf_token }}" />
     <title>财务Excel处理系统</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
@@ -15,441 +13,1347 @@
       rel="stylesheet"
     />
     <style>
-      .upload-area {
-        border: 2px dashed #dee2e6;
-        border-radius: 8px;
-        padding: 1rem;
+      :root {
+        --primary-color: #2563eb;
+        --success-color: #059669;
+        --warning-color: #d97706;
+        --danger-color: #dc2626;
+        --light-bg: #f8fafc;
+        --border-radius: 12px;
+        --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+      }
+
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      .main-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-lg);
+        margin: 2rem 0;
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .header-section {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .header-title {
+        background: linear-gradient(135deg, var(--primary-color), var(--success-color));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .header-subtitle {
+        color: #64748b;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+      }
+
+      .control-panel {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 2rem;
+        border: 1px solid #e2e8f0;
+      }
+
+      .process-type-section {
+        margin-bottom: 2rem;
+      }
+
+      .section-title {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 1rem;
+        font-size: 1.1rem;
+      }
+
+      .process-type-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .process-card {
+        position: relative;
+        border: 2px solid #e5e7eb;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .process-card:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .process-card.active {
+        border-color: var(--primary-color);
+        background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+        color: white;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .process-card.active.success {
+        border-color: var(--success-color);
+        background: linear-gradient(135deg, var(--success-color), #10b981);
+      }
+
+      .process-card-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+        display: block;
+      }
+
+      .process-card-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      .process-card-desc {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+
+      .process-card input[type='radio'] {
+        display: none;
+      }
+
+      .upload-section {
+        text-align: center;
+        padding: 2rem;
+        border: 2px dashed #d1d5db;
+        border-radius: var(--border-radius);
+        background: var(--light-bg);
         transition: all 0.3s ease;
         cursor: pointer;
-        min-height: auto;
       }
-      .upload-area:hover {
-        border-color: #0d6efd;
-        background-color: #f8f9fa;
+
+      .upload-section:hover {
+        border-color: var(--primary-color);
+        background: rgba(37, 99, 235, 0.05);
       }
-      .upload-area.dragover {
-        border-color: #0d6efd;
-        background-color: #e7f3ff;
+
+      .upload-section.dragover {
+        border-color: var(--primary-color);
+        background: rgba(37, 99, 235, 0.1);
+        transform: scale(1.02);
       }
-      .upload-area h6 {
-        color: #495057;
+
+      .upload-icon {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+      }
+
+      .upload-text {
+        font-size: 1.2rem;
         font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
       }
-      .card {
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-        border: 1px solid rgba(0, 0, 0, 0.125);
+
+      .upload-hint {
+        color: #6b7280;
+        font-size: 0.9rem;
       }
-      .card-header {
-        background-color: rgba(0, 123, 255, 0.03);
-        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+
+      .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
       }
-      @media (max-width: 768px) {
-        .upload-area .row {
-          text-align: center;
-        }
-        .upload-area .col-md-4 {
-          margin-top: 1rem;
-        }
+
+      .btn-modern {
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
       }
+
+      .btn-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-modern:active {
+        transform: translateY(0);
+      }
+
+      .btn-modern.btn-primary {
+        background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+        color: white;
+      }
+
+      .btn-modern.btn-outline-primary {
+        background: white;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+      }
+
+      .btn-modern.btn-outline-primary:hover {
+        background: var(--primary-color);
+        color: white;
+      }
+
+      .user-info {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1rem 1.5rem;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 2rem;
+      }
+
       .processing {
         display: none;
       }
       .result {
         display: none;
       }
+
+      .status-card {
+        background: white;
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow-md);
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+      }
+
+      .status-card-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .status-card-body {
+        padding: 1.5rem;
+      }
+
       .log-container {
         max-height: 300px;
         overflow-y: auto;
-        background-color: #f8f9fa;
-        border-radius: 4px;
+        background-color: #1f2937;
+        border-radius: 8px;
         padding: 1rem;
-      }
-      .log-entry {
-        font-family: 'Courier New', monospace;
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
         font-size: 0.85rem;
+        color: #e5e7eb;
+      }
+
+      .log-entry {
         margin-bottom: 0.25rem;
+        padding: 0.25rem 0;
+        border-left: 3px solid transparent;
+        padding-left: 0.75rem;
       }
+
       .log-entry.error {
-        color: #dc3545;
+        color: #fca5a5;
+        border-left-color: #dc2626;
+        background: rgba(220, 38, 38, 0.1);
       }
+
       .log-entry.info {
-        color: #198754;
+        color: #86efac;
+        border-left-color: #059669;
+        background: rgba(5, 150, 105, 0.1);
+      }
+
+      .log-entry.warning {
+        color: #fcd34d;
+        border-left-color: #d97706;
+        background: rgba(217, 119, 6, 0.1);
+      }
+
+      .pulse-animation {
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+
+      .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #e5e7eb;
+        border-top: 2px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 0.5rem;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* 响应式设计 */
+      @media (max-width: 768px) {
+        .main-container {
+          margin: 1rem;
+          padding: 1rem;
+        }
+
+        .header-title {
+          font-size: 2rem;
+        }
+
+        .control-panel {
+          padding: 1rem;
+        }
+
+        .process-type-cards {
+          grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .btn-modern {
+          width: 100%;
+          max-width: 300px;
+        }
+
+        .upload-section {
+          padding: 1.5rem 1rem;
+        }
+
+        .upload-icon {
+          font-size: 2rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .header-title {
+          font-size: 1.75rem;
+        }
+
+        .process-card {
+          padding: 1rem;
+        }
+
+        .process-card-icon {
+          font-size: 1.5rem;
+        }
+      }
+
+      /* 动画效果 */
+      .fade-in {
+        animation: fadeIn 0.5s ease-in;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .slide-up {
+        animation: slideUp 0.3s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
     </style>
   </head>
   <body>
-    <!-- 未登录提示 -->
-    <div id="loginPrompt" class="d-none">
-      <div class="container mt-5">
-        <div class="row justify-content-center">
-          <div class="col-md-6">
-            <div class="card text-center">
-              <div class="card-body">
-                <i class="bi bi-shield-lock display-1 text-warning mb-3"></i>
-                <h3>需要登录</h3>
-                <p class="text-muted">请登录后才能使用财务Excel处理系统</p>
-                <a href="/auth/login/" class="btn btn-primary me-2">
-                  <i class="bi bi-box-arrow-in-right me-1"></i>
-                  登录
-                </a>
-                <a href="/auth/register/" class="btn btn-outline-primary">
-                  <i class="bi bi-person-plus me-1"></i>
-                  注册
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 主应用内容 -->
-    <div id="mainApp" class="d-none">
-      <div class="container mt-4">
-        <div class="row">
-          <div class="col-md-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-              <h1 class="h3">
-                <i class="bi bi-file-earmark-excel text-success me-2"></i>
-                财务Excel处理系统
-              </h1>
-              <div class="d-flex align-items-center">
-                <span class="me-3">
-                  <i class="bi bi-person-circle me-1"></i>
-                  欢迎，<span id="username"></span>
-                </span>
-                <a href="/history/" class="btn btn-outline-primary me-2">
-                  <i class="bi bi-clock-history me-1"></i>
-                  查看历史
-                </a>
-                <button class="btn btn-outline-danger" onclick="logout()">
+    {% csrf_token %}
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10 col-md-12">
+          <div class="main-container">
+            <!-- 用户信息栏 -->
+            <div class="user-info">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                  <div class="me-3">
+                    <i class="bi bi-person-circle text-primary" style="font-size: 2rem"></i>
+                  </div>
+                  <div>
+                    <div class="fw-bold text-dark">{{ user.username }}</div>
+                    {% if user.email %}
+                    <small class="text-muted">{{ user.email }}</small>
+                    {% endif %}
+                  </div>
+                </div>
+                <button type="button" class="btn btn-modern btn-outline-primary" onclick="logout()">
                   <i class="bi bi-box-arrow-right me-1"></i>
                   登出
                 </button>
               </div>
             </div>
 
-            <!-- 上传区域 -->
-            <div class="card mb-4">
-              <div class="card-header">
-                <h5 class="mb-0">
-                  <i class="bi bi-cloud-upload me-2"></i>
-                  文件上传
-                </h5>
-              </div>
-              <div class="card-body">
-                <div class="upload-area" id="uploadArea">
-                  <div class="row align-items-center">
-                    <div class="col-md-8">
-                      <div class="d-flex align-items-center">
-                        <i class="bi bi-cloud-upload text-muted me-3" style="font-size: 2rem"></i>
-                        <div>
-                          <h6 class="mb-1">拖拽Excel文件到这里或点击选择文件</h6>
-                          <small class="text-muted">支持 .xlsx 和 .xls 格式，最大50MB</small>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                      <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
-                      <button
-                        type="button"
-                        class="btn btn-primary"
-                        onclick="document.getElementById('fileInput').click()"
-                      >
-                        <i class="bi bi-folder2-open me-1"></i>
-                        选择文件
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <!-- 标题区域 -->
+            <div class="header-section">
+              <h1 class="header-title">
+                <i class="bi bi-file-earmark-excel me-2"></i>
+                财务Excel处理系统
+              </h1>
+              <p class="header-subtitle">智能化财务数据处理，让工作更高效</p>
             </div>
 
-            <!-- 错误信息 -->
-            <div class="alert alert-danger d-none" id="errorAlert">
-              <i class="bi bi-exclamation-triangle-fill me-2"></i>
-              <span id="errorMessage"></span>
+            <!-- 控制面板 -->
+            <div class="control-panel">
+              <!-- 处理类型选择 -->
+              <div class="process-type-section">
+                <div class="section-title">
+                  <i class="bi bi-gear me-2"></i>
+                  选择处理类型
+                </div>
+                <div class="process-type-cards">
+                  <label class="process-card active" for="paymentType">
+                    <input
+                      type="radio"
+                      name="processType"
+                      id="paymentType"
+                      value="payment"
+                      checked
+                    />
+                    <i class="bi bi-credit-card process-card-icon"></i>
+                    <div class="process-card-title">排单处理</div>
+                    <div class="process-card-desc">处理付款排单Excel文件</div>
+                  </label>
+
+                  <label class="process-card success" for="reimbursementType">
+                    <input
+                      type="radio"
+                      name="processType"
+                      id="reimbursementType"
+                      value="reimbursement"
+                    />
+                    <i class="bi bi-receipt process-card-icon"></i>
+                    <div class="process-card-title">报销处理</div>
+                    <div class="process-card-desc">处理报销Excel文件</div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 文件上传区域 -->
+              <div class="section-title">
+                <i class="bi bi-cloud-upload me-2"></i>
+                上传文件
+              </div>
+              <div
+                class="upload-section"
+                id="uploadSection"
+                onclick="document.getElementById('fileInput').click()"
+              >
+                <i class="bi bi-cloud-upload upload-icon"></i>
+                <div class="upload-text">点击或拖拽文件到此处</div>
+                <div class="upload-hint">支持 .xlsx, .xls 格式，文件大小不超过 50MB</div>
+                <input type="file" id="fileInput" class="d-none" accept=".xlsx,.xls" />
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="action-buttons">
+                <button
+                  type="button"
+                  class="btn btn-modern btn-primary"
+                  id="uploadBtn"
+                  onclick="document.getElementById('fileInput').click()"
+                >
+                  <i class="bi bi-cloud-upload me-2"></i>
+                  选择文件上传
+                </button>
+                <a href="/history/" class="btn btn-modern btn-outline-primary">
+                  <i class="bi bi-clock-history me-2"></i>
+                  查看历史记录
+                </a>
+              </div>
             </div>
 
             <!-- 处理进度 -->
-            <div class="card mb-4 processing" id="processingCard">
-              <div class="card-header">
-                <h5 class="mb-0">
+            <div class="status-card processing fade-in" id="processingCard">
+              <div class="status-card-header">
+                <h5 class="mb-0 d-flex align-items-center">
+                  <div class="loading-spinner me-2"></div>
                   <i class="bi bi-gear-fill text-primary me-2"></i>
                   处理中...
                 </h5>
               </div>
-              <div class="card-body">
-                <div class="d-flex align-items-center">
-                  <div class="spinner-border text-primary me-3" role="status">
-                    <span class="visually-hidden">处理中...</span>
+              <div class="status-card-body">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="me-3">
+                    <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">处理中...</span>
+                    </div>
                   </div>
                   <div>
                     <div class="fw-bold">正在处理Excel文件</div>
-                    <div class="text-muted" id="processingText">请稍候...</div>
+                    <div class="text-muted" id="processingText">
+                      请稍候，系统正在智能分析文件内容...
+                    </div>
                   </div>
                 </div>
                 <div class="mt-3">
+                  <h6 class="mb-2">实时处理日志</h6>
                   <div class="log-container" id="logContainer">
-                    <div class="log-entry info">文件上传成功...</div>
+                    <div class="log-entry info">文件上传成功，开始处理...</div>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- 处理结果 -->
-            <div class="card mb-4 result" id="resultCard">
-              <div class="card-header">
-                <h5 class="mb-0">
+            <div class="status-card result slide-up" id="resultCard">
+              <div class="status-card-header">
+                <h5 class="mb-0 d-flex align-items-center">
                   <i class="bi bi-check-circle-fill text-success me-2"></i>
                   处理完成
                 </h5>
               </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="d-flex align-items-center mb-3">
-                      <i class="bi bi-file-earmark-check text-success me-2"></i>
+              <div class="status-card-body">
+                <div class="row align-items-center mb-3">
+                  <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                      <div class="me-3">
+                        <i
+                          class="bi bi-file-earmark-check text-success"
+                          style="font-size: 2rem"
+                        ></i>
+                      </div>
                       <div>
-                        <div class="fw-bold">处理成功</div>
+                        <div class="fw-bold text-success">处理成功</div>
                         <div class="text-muted" id="resultText">共处理 0 条记录</div>
                       </div>
                     </div>
                   </div>
-                  <div class="col-md-6 text-end">
-                    <button type="button" class="btn btn-success" id="downloadBtn">
-                      <i class="bi bi-download me-1"></i>
+                  <div class="col-md-4 text-end">
+                    <button
+                      type="button"
+                      class="btn btn-modern btn-primary mb-2 w-100"
+                      id="downloadBtn"
+                    >
+                      <i class="bi bi-download me-2"></i>
                       下载结果文件
                     </button>
-                    <button type="button" class="btn btn-primary ms-2" onclick="location.reload()">
-                      <i class="bi bi-arrow-clockwise me-1"></i>
+                    <button
+                      type="button"
+                      class="btn btn-modern btn-outline-primary w-100"
+                      onclick="location.reload()"
+                    >
+                      <i class="bi bi-arrow-clockwise me-2"></i>
                       重新处理
                     </button>
                   </div>
                 </div>
                 <div class="mt-3">
-                  <h6>处理日志：</h6>
+                  <h6 class="mb-2">处理详情</h6>
                   <div class="log-container" id="resultLogContainer"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 错误信息 -->
+            <div
+              class="alert alert-danger d-none slide-up"
+              id="errorAlert"
+              style="
+                border-radius: var(--border-radius);
+                border: none;
+                box-shadow: var(--shadow-md);
+              "
+            >
+              <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.25rem"></i>
+                <div>
+                  <div class="fw-bold">处理失败</div>
+                  <span id="errorMessage"></span>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-      <script>
-        let currentRecordId = null;
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let currentRecordId = null;
+      let isUploading = false;
 
-        // 文件上传处理
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const processingCard = document.getElementById('processingCard');
-        const resultCard = document.getElementById('resultCard');
-        const errorAlert = document.getElementById('errorAlert');
+      // DOM 元素
+      const fileInput = document.getElementById('fileInput');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const uploadSection = document.getElementById('uploadSection');
+      const processingCard = document.getElementById('processingCard');
+      const resultCard = document.getElementById('resultCard');
+      const errorAlert = document.getElementById('errorAlert');
+      const processCards = document.querySelectorAll('.process-card');
 
-        // 拖拽事件
-        uploadArea.addEventListener('dragover', e => {
-          e.preventDefault();
-          uploadArea.classList.add('dragover');
+      // 初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        initializeProcessTypeCards();
+        initializeDragAndDrop();
+        initializeTooltips();
+      });
+
+      // 初始化处理类型卡片
+      function initializeProcessTypeCards() {
+        processCards.forEach(card => {
+          card.addEventListener('click', function () {
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+              radio.checked = true;
+              updateProcessCardStates();
+              addClickEffect(this);
+            }
+          });
         });
+        updateProcessCardStates();
+      }
 
-        uploadArea.addEventListener('dragleave', () => {
-          uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', e => {
-          e.preventDefault();
-          uploadArea.classList.remove('dragover');
-          const files = e.dataTransfer.files;
-          if (files.length > 0) {
-            handleFile(files[0]);
+      // 更新处理类型卡片状态
+      function updateProcessCardStates() {
+        processCards.forEach(card => {
+          const radio = card.querySelector('input[type="radio"]');
+          if (radio && radio.checked) {
+            card.classList.add('active');
+          } else {
+            card.classList.remove('active');
           }
         });
+      }
 
-        uploadArea.addEventListener('click', () => {
-          fileInput.click();
+      // 添加点击效果
+      function addClickEffect(element) {
+        element.style.transform = 'scale(0.98)';
+        setTimeout(() => {
+          element.style.transform = '';
+        }, 150);
+      }
+
+      // 初始化拖拽上传
+      function initializeDragAndDrop() {
+        uploadSection.addEventListener('dragover', handleDragOver);
+        uploadSection.addEventListener('dragleave', handleDragLeave);
+        uploadSection.addEventListener('drop', handleDrop);
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+      }
+
+      function handleDragLeave(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
+        }
+      }
+
+      // 初始化工具提示
+      function initializeTooltips() {
+        const tooltipTriggerList = [].slice.call(
+          document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        );
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+          return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+      }
 
-        fileInput.addEventListener('change', e => {
-          if (e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
+      // 获取Cookie的函数
+      function getCookie(name) {
+        if (name === 'csrftoken') {
+          const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+          if (csrfInput) {
+            return csrfInput.value;
           }
-        });
-
-        function handleFile(file) {
-          // 验证文件类型
-          if (
-            !file.name.toLowerCase().endsWith('.xlsx') &&
-            !file.name.toLowerCase().endsWith('.xls')
-          ) {
-            showError('请选择Excel文件格式 (.xlsx, .xls)');
-            return;
-          }
-
-          // 验证文件大小
-          if (file.size > 50 * 1024 * 1024) {
-            showError('文件大小不能超过50MB');
-            return;
-          }
-
-          uploadFile(file);
         }
 
-        function uploadFile(file) {
-          hideError();
-          showProcessing();
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === name + '=') {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+              break;
+            }
+          }
+        }
+        return cookieValue;
+      }
 
-          const formData = new FormData();
-          formData.append('file', file);
+      // 文件上传处理
+      fileInput.addEventListener('change', e => {
+        if (e.target.files.length > 0 && !isUploading) {
+          handleFile(e.target.files[0]);
+          e.target.value = '';
+        }
+      });
 
-          const csrftoken = getCookie('csrftoken');
+      function handleFile(file) {
+        if (isUploading) {
+          showError('正在处理文件，请稍候...');
+          return;
+        }
 
-          fetch('/api/finance/records/upload/', {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': csrftoken,
-            },
-            body: formData,
+        // 验证文件类型
+        if (
+          !file.name.toLowerCase().endsWith('.xlsx') &&
+          !file.name.toLowerCase().endsWith('.xls')
+        ) {
+          showError('请选择Excel文件格式 (.xlsx, .xls)');
+          return;
+        }
+
+        // 验证文件大小
+        if (file.size > 50 * 1024 * 1024) {
+          showError('文件大小不能超过50MB');
+          return;
+        }
+
+        uploadFile(file);
+      }
+
+      function uploadFile(file) {
+        isUploading = true;
+        setUploadButtonState('uploading');
+        hideError();
+        showProcessing(file.name);
+
+        const processType = document.querySelector('input[name="processType"]:checked').value;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('process_type', processType);
+
+        const csrftoken = getCookie('csrftoken');
+
+        fetch('/api/finance/records/upload/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+          },
+          body: formData,
+        })
+          .then(response => response.json())
+          .then(data => {
+            isUploading = false;
+            setUploadButtonState('normal');
+
+            if (data.status === 'completed') {
+              currentRecordId = data.id;
+              showResult(data);
+              loadLogs(data.id);
+            } else if (data.status === 'failed') {
+              showError(data.error || '处理失败');
+            } else {
+              showError('未知错误');
+            }
           })
-            .then(response => response.json())
-            .then(data => {
-              if (data.status === 'completed') {
-                currentRecordId = data.id;
-                showResult(data);
-                loadLogs(data.id);
-              } else if (data.status === 'failed') {
-                showError(data.error || '处理失败');
-              } else {
-                showError('未知错误');
-              }
-            })
-            .catch(error => {
-              console.error('Error:', error);
-              showError('上传失败，请重试');
-            });
+          .catch(error => {
+            isUploading = false;
+            setUploadButtonState('normal');
+            console.error('Error:', error);
+            showError('上传失败，请重试');
+          });
+      }
+
+      // 设置上传按钮状态
+      function setUploadButtonState(state) {
+        if (state === 'uploading') {
+          uploadBtn.disabled = true;
+          uploadBtn.innerHTML = '<div class="loading-spinner me-2"></div>上传中...';
+          uploadSection.style.pointerEvents = 'none';
+          uploadSection.style.opacity = '0.6';
+        } else if (state === 'normal') {
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i>选择文件上传';
+          uploadSection.style.pointerEvents = '';
+          uploadSection.style.opacity = '';
+        }
+      }
+
+      function showProcessing(fileName = '') {
+        hideError();
+        processingCard.style.display = 'block';
+        resultCard.style.display = 'none';
+
+        if (fileName) {
+          document.getElementById('processingText').textContent = `正在处理文件: ${fileName}`;
         }
 
-        function showProcessing() {
-          processingCard.style.display = 'block';
-          resultCard.style.display = 'none';
+        // 添加动画效果
+        processingCard.classList.add('fade-in');
+
+        // 模拟处理进度更新
+        updateProcessingText();
+      }
+
+      function updateProcessingText() {
+        const messages = [
+          '正在验证文件格式...',
+          '正在读取Excel数据...',
+          '正在分析数据结构...',
+          '正在处理数据内容...',
+          '正在生成结果文件...',
+        ];
+
+        let index = 0;
+        const interval = setInterval(() => {
+          if (index < messages.length && processingCard.style.display === 'block') {
+            document.getElementById('processingText').textContent = messages[index];
+            index++;
+          } else {
+            clearInterval(interval);
+          }
+        }, 1000);
+      }
+
+      function showResult(data) {
+        processingCard.style.display = 'none';
+        resultCard.style.display = 'block';
+        resultCard.classList.add('slide-up');
+
+        document.getElementById('resultText').textContent = `共处理 ${
+          data.total_records
+        } 条记录，耗时 ${data.processing_time.toFixed(2)} 秒`;
+
+        document.getElementById('downloadBtn').onclick = () => downloadFile(data.id);
+
+        // 添加成功音效（如果需要）
+        // playSuccessSound();
+      }
+
+      function showError(message) {
+        // 重置上传状态
+        isUploading = false;
+        setUploadButtonState('normal');
+
+        // 使用现代化的Toast提示替代老式的alert
+        showToast(message, 'error', 5000);
+
+        processingCard.style.display = 'none';
+        resultCard.style.display = 'none';
+      }
+
+      function hideError() {
+        // Toast会自动隐藏，这里保持兼容性
+        const existingToast = document.querySelector('.custom-toast');
+        if (existingToast) {
+          existingToast.remove();
         }
+      }
 
-        function showResult(data) {
-          processingCard.style.display = 'none';
-          resultCard.style.display = 'block';
+      function downloadFile(recordId) {
+        // 添加下载动画效果
+        const downloadBtn = document.getElementById('downloadBtn');
+        const originalText = downloadBtn.innerHTML;
 
-          document.getElementById('resultText').textContent = `共处理 ${
-            data.total_records
-          } 条记录，耗时 ${data.processing_time.toFixed(2)} 秒`;
+        downloadBtn.innerHTML = '<div class="loading-spinner me-2"></div>准备下载...';
+        downloadBtn.disabled = true;
 
-          document.getElementById('downloadBtn').onclick = () => downloadFile(data.id);
-        }
-
-        function showError(message) {
-          errorAlert.classList.remove('d-none');
-          document.getElementById('errorMessage').textContent = message;
-          processingCard.style.display = 'none';
-          resultCard.style.display = 'none';
-        }
-
-        function hideError() {
-          errorAlert.classList.add('d-none');
-        }
-
-        function downloadFile(recordId) {
+        setTimeout(() => {
           window.open(`/api/finance/records/${recordId}/download/`, '_blank');
-        }
+          downloadBtn.innerHTML = originalText;
+          downloadBtn.disabled = false;
+        }, 1000);
+      }
 
-        function loadLogs(recordId) {
-          fetch(`/api/finance/records/${recordId}/logs/`)
-            .then(response => response.json())
-            .then(logs => {
-              const container = document.getElementById('resultLogContainer');
-              container.innerHTML = '';
-              logs.forEach(log => {
+      function loadLogs(recordId) {
+        fetch(`/api/finance/records/${recordId}/logs/`)
+          .then(response => response.json())
+          .then(logs => {
+            const container = document.getElementById('resultLogContainer');
+            container.innerHTML = '';
+            logs.forEach((log, index) => {
+              setTimeout(() => {
                 const entry = document.createElement('div');
                 entry.className = `log-entry ${log.level.toLowerCase()}`;
                 entry.textContent = `[${log.timestamp_display}] ${log.level}: ${log.message}`;
+                entry.style.opacity = '0';
                 container.appendChild(entry);
-              });
-            })
-            .catch(error => {
-              console.error('Error loading logs:', error);
+
+                // 添加淡入动画
+                setTimeout(() => {
+                  entry.style.transition = 'opacity 0.3s ease';
+                  entry.style.opacity = '1';
+                }, 50);
+              }, index * 100);
             });
+          })
+          .catch(error => {
+            console.error('Error loading logs:', error);
+          });
+      }
+
+      // 现代化的Toast提示函数
+      function showToast(message, type = 'info', duration = 3000) {
+        // 移除已存在的toast
+        const existingToast = document.querySelector('.custom-toast');
+        if (existingToast) {
+          existingToast.remove();
         }
 
-        // 认证相关函数
-        function getCookie(name) {
-          // 首先尝试从meta标签获取CSRF令牌
-          if (name === 'csrftoken') {
-            const metaToken = document.querySelector('meta[name="csrf-token"]');
-            if (metaToken) {
-              return metaToken.getAttribute('content');
-            }
-          }
+        const toast = document.createElement('div');
+        toast.className = `custom-toast toast-${type}`;
 
-          // 回退到从cookie获取
-          let cookieValue = null;
-          if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-              const cookie = cookies[i].trim();
-              if (cookie.substring(0, name.length + 1) === name + '=') {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+        const icons = {
+          success: 'bi-check-circle-fill',
+          error: 'bi-exclamation-triangle-fill',
+          warning: 'bi-exclamation-circle-fill',
+          info: 'bi-info-circle-fill',
+        };
+
+        toast.innerHTML = `
+          <div class="toast-content">
+            <i class="bi ${icons[type]} toast-icon"></i>
+            <span class="toast-message">${message}</span>
+          </div>
+          <button class="toast-close" onclick="this.parentElement.remove()">
+            <i class="bi bi-x"></i>
+          </button>
+        `;
+
+        // 添加样式
+        if (!document.querySelector('#toast-styles')) {
+          const style = document.createElement('style');
+          style.id = 'toast-styles';
+          style.textContent = `
+            .custom-toast {
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              z-index: 9999;
+              background: white;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+              padding: 16px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              min-width: 300px;
+              max-width: 500px;
+              border-left: 4px solid;
+              animation: slideInRight 0.3s ease-out;
+            }
+            
+            .toast-success { border-left-color: #059669; }
+            .toast-error { border-left-color: #dc2626; }
+            .toast-warning { border-left-color: #d97706; }
+            .toast-info { border-left-color: #2563eb; }
+            
+            .toast-content {
+              display: flex;
+              align-items: center;
+              flex: 1;
+            }
+            
+            .toast-icon {
+              margin-right: 12px;
+              font-size: 1.2rem;
+            }
+            
+            .toast-success .toast-icon { color: #059669; }
+            .toast-error .toast-icon { color: #dc2626; }
+            .toast-warning .toast-icon { color: #d97706; }
+            .toast-info .toast-icon { color: #2563eb; }
+            
+            .toast-message {
+              font-weight: 500;
+              color: #374151;
+            }
+            
+            .toast-close {
+              background: none;
+              border: none;
+              padding: 4px;
+              margin-left: 12px;
+              cursor: pointer;
+              color: #6b7280;
+              border-radius: 4px;
+              transition: all 0.2s ease;
+            }
+            
+            .toast-close:hover {
+              background-color: #f3f4f6;
+              color: #374151;
+            }
+            
+            @keyframes slideInRight {
+              from {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
               }
             }
-          }
-          return cookieValue;
+          `;
+          document.head.appendChild(style);
         }
 
-        async function checkAuthStatus() {
-          try {
-            const response = await fetch('/api/auth/status/');
-            const result = await response.json();
+        document.body.appendChild(toast);
 
-            if (result.authenticated) {
-              document.getElementById('mainApp').classList.remove('d-none');
-              document.getElementById('loginPrompt').classList.add('d-none');
-              document.getElementById('username').textContent = result.user.username;
-            } else {
-              document.getElementById('mainApp').classList.add('d-none');
-              document.getElementById('loginPrompt').classList.remove('d-none');
+        // 自动隐藏
+        if (duration > 0) {
+          setTimeout(() => {
+            if (toast.parentElement) {
+              toast.style.animation = 'slideOutRight 0.3s ease-out';
+              setTimeout(() => toast.remove(), 300);
             }
-          } catch (error) {
-            console.error('Error checking auth status:', error);
-            document.getElementById('mainApp').classList.add('d-none');
-            document.getElementById('loginPrompt').classList.remove('d-none');
-          }
+          }, duration);
         }
+      }
 
-        async function logout() {
-          try {
-            const csrftoken = getCookie('csrftoken');
-            const response = await fetch('/api/auth/logout/', {
-              method: 'POST',
-              headers: {
-                'X-CSRFToken': csrftoken,
-                'Content-Type': 'application/json',
-              },
-            });
-            const result = await response.json();
+      // 现代化的确认对话框
+      function showConfirmDialog(title, message, confirmText = '确认', cancelText = '取消') {
+        return new Promise(resolve => {
+          // 移除已存在的对话框
+          const existingDialog = document.querySelector('.custom-confirm-dialog');
+          if (existingDialog) {
+            existingDialog.remove();
+          }
 
-            if (result.success) {
-              window.location.href = '/auth/login/';
+          const dialog = document.createElement('div');
+          dialog.className = 'custom-confirm-dialog';
+          dialog.innerHTML = `
+            <div class="confirm-overlay"></div>
+            <div class="confirm-modal">
+              <div class="confirm-header">
+                <h5 class="confirm-title">${title}</h5>
+              </div>
+              <div class="confirm-body">
+                <p class="confirm-message">${message}</p>
+              </div>
+              <div class="confirm-footer">
+                <button class="confirm-btn confirm-btn-cancel" onclick="confirmDialog.resolve(false)">${cancelText}</button>
+                <button class="confirm-btn confirm-btn-primary" onclick="confirmDialog.resolve(true)">${confirmText}</button>
+              </div>
+            </div>
+          `;
+
+          // 添加样式
+          if (!document.querySelector('#confirm-dialog-styles')) {
+            const style = document.createElement('style');
+            style.id = 'confirm-dialog-styles';
+            style.textContent = `
+              .custom-confirm-dialog {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.2s ease-out;
+              }
+              
+              .confirm-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(4px);
+              }
+              
+              .confirm-modal {
+                position: relative;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+                max-width: 400px;
+                width: 90%;
+                overflow: hidden;
+                animation: scaleIn 0.2s ease-out;
+              }
+              
+              .confirm-header {
+                padding: 20px 24px 0;
+              }
+              
+              .confirm-title {
+                margin: 0;
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: #111827;
+              }
+              
+              .confirm-body {
+                padding: 16px 24px 24px;
+              }
+              
+              .confirm-message {
+                margin: 0;
+                color: #6b7280;
+                line-height: 1.5;
+              }
+              
+              .confirm-footer {
+                padding: 0 24px 24px;
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+              }
+              
+              .confirm-btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 8px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 0.9rem;
+              }
+              
+              .confirm-btn-cancel {
+                background: #f3f4f6;
+                color: #374151;
+              }
+              
+              .confirm-btn-cancel:hover {
+                background: #e5e7eb;
+              }
+              
+              .confirm-btn-primary {
+                background: #dc2626;
+                color: white;
+              }
+              
+              .confirm-btn-primary:hover {
+                background: #b91c1c;
+              }
+              
+              @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              
+              @keyframes scaleIn {
+                from {
+                  transform: scale(0.9);
+                  opacity: 0;
+                }
+                to {
+                  transform: scale(1);
+                  opacity: 1;
+                }
+              }
+            `;
+            document.head.appendChild(style);
+          }
+
+          document.body.appendChild(dialog);
+
+          // 存储resolve函数以便按钮调用
+          window.confirmDialog = { resolve };
+
+          // 点击遮罩层关闭
+          dialog.querySelector('.confirm-overlay').onclick = () => {
+            resolve(false);
+            dialog.remove();
+            delete window.confirmDialog;
+          };
+
+          // 键盘支持
+          const handleKeydown = e => {
+            if (e.key === 'Escape') {
+              resolve(false);
+              dialog.remove();
+              document.removeEventListener('keydown', handleKeydown);
+              delete window.confirmDialog;
+            } else if (e.key === 'Enter') {
+              resolve(true);
+              dialog.remove();
+              document.removeEventListener('keydown', handleKeydown);
+              delete window.confirmDialog;
             }
-          } catch (error) {
-            console.error('Error logging out:', error);
-          }
-        }
+          };
+          document.addEventListener('keydown', handleKeydown);
 
-        // 页面加载时检查认证状态
-        document.addEventListener('DOMContentLoaded', function () {
-          checkAuthStatus();
+          // 重写resolve以清理DOM
+          const originalResolve = resolve;
+          window.confirmDialog.resolve = result => {
+            originalResolve(result);
+            dialog.style.animation = 'fadeOut 0.2s ease-out';
+            setTimeout(() => {
+              if (dialog.parentElement) dialog.remove();
+            }, 200);
+            document.removeEventListener('keydown', handleKeydown);
+            delete window.confirmDialog;
+          };
         });
-      </script>
-    </div>
-    <!-- 关闭主应用div -->
+      }
+
+      // 登出功能
+      async function logout() {
+        try {
+          // 显示确认对话框
+          const confirmed = await showConfirmDialog(
+            '确认登出',
+            '您确定要退出当前账户吗？未保存的操作可能会丢失。',
+            '登出',
+            '取消'
+          );
+
+          if (!confirmed) {
+            return;
+          }
+
+          // 显示登出中的提示
+          showToast('正在安全退出...', 'info', 0);
+
+          // 获取CSRF token
+          const csrftoken = getCookie('csrftoken');
+
+          const response = await fetch('/api/auth/logout/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrftoken,
+            },
+            credentials: 'same-origin',
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+
+          if (result.success) {
+            // 成功登出
+            showToast('登出成功，正在跳转...', 'success', 1500);
+
+            // 清除本地存储
+            try {
+              localStorage.clear();
+              sessionStorage.clear();
+            } catch (e) {
+              console.warn('清除本地存储失败:', e);
+            }
+
+            // 添加页面淡出动画
+            document.body.style.transition = 'opacity 0.5s ease-out';
+            document.body.style.opacity = '0';
+
+            // 延迟跳转以显示动画效果
+            setTimeout(() => {
+              window.location.href = '/auth/login/';
+            }, 800);
+          } else {
+            throw new Error(result.message || '登出失败');
+          }
+        } catch (error) {
+          console.error('Logout error:', error);
+
+          // 移除登出中的提示
+          const existingToast = document.querySelector('.custom-toast');
+          if (existingToast) existingToast.remove();
+
+          // 显示错误信息
+          let errorMessage = '登出失败，请重试';
+
+          if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+            errorMessage = '网络连接失败，请检查网络后重试';
+          } else if (error.message.includes('HTTP 403')) {
+            errorMessage = '没有权限执行此操作';
+          } else if (error.message.includes('HTTP 500')) {
+            errorMessage = '服务器内部错误，请稍后重试';
+          }
+
+          showToast(errorMessage, 'error', 5000);
+        }
+      }
+
+      // 键盘快捷键支持
+      document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key) {
+            case 'u':
+              e.preventDefault();
+              if (!isUploading) {
+                fileInput.click();
+              }
+              break;
+            case 'h':
+              e.preventDefault();
+              window.location.href = '/history/';
+              break;
+          }
+        }
+
+        if (e.key === 'Escape') {
+          hideError();
+        }
+      });
+
+      // 页面可见性变化处理
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden && isUploading) {
+          // 页面隐藏时暂停某些动画
+        } else if (!document.hidden && isUploading) {
+          // 页面显示时恢复动画
+        }
+      });
+    </script>
   </body>
 </html>

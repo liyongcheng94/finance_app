@@ -165,25 +165,19 @@ class ExcelProcessor:
             wb = openpyxl.load_workbook(path, data_only=True)
 
             if sheet_name not in wb.sheetnames:
-                available_sheets = ", ".join(wb.sheetnames)
-                raise ExcelProcessingError(
-                    f"Excel文件中找不到工作表「{sheet_name}」，可用的工作表有：{available_sheets}"
-                )
+                raise ExcelProcessingError(f"工作表 '{sheet_name}' 不存在")
 
             sheet = wb[sheet_name]
 
-            for row_index, row in enumerate(
-                sheet.iter_rows(min_row=start_row, values_only=True, max_col=max_col),
-                start=start_row,
+            for row in sheet.iter_rows(
+                min_row=start_row, values_only=True, max_col=max_col
             ):
                 if row[0] is None:
                     continue
                 result.append(row)
 
             if len(result) == 0:
-                self.logger.warning(
-                    f"工作表「{sheet_name}」中没有有效数据，请检查第{start_row}行及以后是否有数据"
-                )
+                self.logger.warning(f"工作表 '{sheet_name}' 中没有数据")
                 return []
 
             # 映射字段名
@@ -204,12 +198,8 @@ class ExcelProcessor:
             wb.close()
             return mapped_result
 
-        except ExcelProcessingError:
-            raise  # 重新抛出自定义异常
         except Exception as e:
-            raise ExcelProcessingError(
-                f"读取Excel文件时发生错误：{str(e)}，请检查文件格式是否正确"
-            )
+            raise ExcelProcessingError(f"解析Excel文件错误: {str(e)}")
 
     def supplier_parse_helper(
         self,
@@ -227,10 +217,7 @@ class ExcelProcessor:
             wb = openpyxl.load_workbook(path, data_only=True)
 
             if sheet_name not in wb.sheetnames:
-                available_sheets = ", ".join(wb.sheetnames)
-                raise ExcelProcessingError(
-                    f"Excel文件中找不到供应商配置工作表「{sheet_name}」，可用的工作表有：{available_sheets}"
-                )
+                raise ExcelProcessingError(f"工作表 '{sheet_name}' 不存在")
 
             sheet = wb[sheet_name]
 
@@ -243,9 +230,7 @@ class ExcelProcessor:
                 result.append(row)
 
             if len(result) == 0:
-                self.logger.warning(
-                    f"供应商配置工作表「{sheet_name}」中没有匹配的数据，请检查供应商配置是否正确"
-                )
+                self.logger.warning(f"供应商工作表 '{sheet_name}' 中没有匹配的数据")
                 return []
 
             # 映射字段名
@@ -302,9 +287,7 @@ class ExcelProcessor:
     def get_fee_by_remark2(self, remark2: str) -> float:
         """从备注2中提取费用"""
         if not remark2:
-            raise ExcelProcessingError(
-                "「备注2」列为空，有定价项目必须填写备注2（格式：金额+说明，如：1000+设计费）"
-            )
+            raise ExcelProcessingError("请检查有定价的项目 备注2是否填写")
 
         fee = 0
         try:
@@ -313,9 +296,7 @@ class ExcelProcessor:
                 fee = remark2.split("+")[0]
             return float(fee) if fee else 0
         except ValueError:
-            raise ExcelProcessingError(
-                f"「备注2」格式错误：「{remark2}」，正确格式应为：金额+说明（如：1000+设计费）"
-            )
+            raise ExcelProcessingError(f"备注2格式错误: {remark2}")
 
     def append_data(
         self,
@@ -329,12 +310,10 @@ class ExcelProcessor:
 
         for i in range(len(base_data)):
             row = base_data[i]
-            row_number = i + 2  # Excel行号，考虑标题行
             row["supplierStr"] = ""
             row["projectStr"] = ""
 
             # 查找供应商信息
-            supplier_found = False
             for supplier in supplier_data:
                 if supplier.get("shortName") == row.get("supplier"):
                     row["supplierStr"] = (
@@ -343,11 +322,9 @@ class ExcelProcessor:
                         + "---"
                         + supplier.get("name", "")
                     )
-                    supplier_found = True
                     break
 
             # 查找项目信息
-            project_found = False
             for project in project_data:
                 if project.get("shortName") == row.get("project"):
                     row["projectStr"] = (
@@ -356,45 +333,15 @@ class ExcelProcessor:
                         + "---"
                         + project.get("name", "")
                     )
-                    project_found = True
                     break
 
-            # 检查是否找到匹配项，提供详细的行号信息
-            if not supplier_found:
-                supplier_value = row.get("supplier", "空值")
-                error_string = f"第{row_number}行「供应商」列：找不到供应商「{supplier_value}」，请检查供应商名称是否在配置表中"
+            # 检查是否找到匹配项
+            if not row["supplierStr"]:
+                error_string = f"找不到供应商: {row.get('supplier', '')}"
                 cannot_find.append(error_string)
 
-            if not project_found:
-                project_value = row.get("project", "空值")
-                error_string = f"第{row_number}行「项目简称」列：找不到项目「{project_value}」，请检查项目名称是否在配置表中"
-                cannot_find.append(error_string)
-
-            # 验证费用类型
-            fee_type = row.get("feeType", "")
-            fee_code = self.get_fee_code(fee_type_data, fee_type)
-            if not fee_code and fee_type:  # 如果费用类型不为空但找不到对应代码
-                error_string = f"第{row_number}行「费用类型」列：找不到费用类型「{fee_type}」，请检查费用类型是否在配置表中"
-                cannot_find.append(error_string)
-
-            # 验证日期格式
-            try:
-                real_date = self.get_real_date(row.get("date"))
-            except Exception as e:
-                error_string = f"第{row_number}行「日期」列：日期格式错误「{row.get('date', '空值')}」，请使用正确的日期格式"
-                cannot_find.append(error_string)
-                continue
-
-            # 验证金额格式
-            try:
-                total_amount = float(row.get("totalAmount", 0))
-                if total_amount <= 0:
-                    error_string = f"第{row_number}行「总金额」列：金额必须大于0，当前值为「{row.get('totalAmount', '空值')}」"
-                    cannot_find.append(error_string)
-            except (ValueError, TypeError):
-                error_string = f"第{row_number}行「总金额」列：金额格式错误「{row.get('totalAmount', '空值')}」，请输入有效的数字"
-                cannot_find.append(error_string)
-                continue
+            if not row["projectStr"]:
+                cannot_find.append(f"找不到项目: {row.get('project', '')}")
 
             if len(cannot_find) > 0:
                 continue
@@ -409,7 +356,8 @@ class ExcelProcessor:
                 pay_company, DEFAULT_BANK_ACCOUNT
             )
 
-            row["feeCode"] = fee_code  # 使用前面验证过的费用代码
+            row["feeCode"] = self.get_fee_code(fee_type_data, row.get("feeType", ""))
+            real_date = self.get_real_date(row.get("date"))
             row["FDate"] = real_date.strftime("%Y-%m-%d")
             row["FYear"] = real_date.strftime("%Y")
             row["FPeriod"] = real_date.strftime("%m")
@@ -420,25 +368,14 @@ class ExcelProcessor:
             if "全款" in payment_type:
                 row["paymentType"] = "full"
 
-            try:
-                real_tax = self.get_real_tax(row)
-                row["realTax"] = real_tax
-                row["remain"] = float(row.get("totalAmount", 0)) - real_tax
-            except ExcelProcessingError as e:
-                error_string = f"第{row_number}行：{str(e)}"
-                cannot_find.append(error_string)
-                continue
-            except Exception as e:
-                error_string = f"第{row_number}行「税费」计算错误：{str(e)}"
-                cannot_find.append(error_string)
-                continue
+            real_tax = self.get_real_tax(row)
+            row["realTax"] = real_tax
+            row["remain"] = float(row.get("totalAmount", 0)) - real_tax
 
         if len(cannot_find) > 0:
-            error_summary = f"Excel文件数据验证失败，发现 {len(cannot_find)} 个错误：\n"
-            for i, error in enumerate(cannot_find, 1):
-                error_summary += f"{i}. {error}\n"
-            error_summary += "\n请修正上述错误后重新上传文件。"
-            raise ExcelProcessingError(error_summary)
+            raise ExcelProcessingError(
+                f"请检查项目或供应商是否正确: {', '.join(cannot_find)}"
+            )
 
         return base_data
 
@@ -696,17 +633,35 @@ class ExcelProcessor:
         except Exception as e:
             raise ExcelProcessingError(f"写入Excel文件错误: {str(e)}")
 
-    def process_excel_file(self, file_path: str, user: User = None) -> Tuple[str, int]:
+    def process_excel_file(
+        self,
+        file_path: str,
+        process_type: str = "payment",
+        user: User = None,
+    ) -> Tuple[str, int]:
         """
         处理Excel文件的主要方法
 
         Args:
             file_path: 输入Excel文件路径
+            process_type: 处理类型 ("payment" 或 "reimbursement")
+            user: Django用户对象，用于获取制单人信息
 
         Returns:
             tuple: (输出文件路径, 处理的记录数)
         """
-        self.logger.info(f"开始处理Excel文件: {file_path}")
+        self.logger.info(f"开始处理Excel文件: {file_path}, 处理类型: {process_type}")
+
+        if process_type == "reimbursement":
+            return self.process_reimbursement_file(file_path, user)
+        else:
+            return self.process_payment_file(file_path, user)
+
+    def process_payment_file(
+        self, file_path: str, user: User = None
+    ) -> Tuple[str, int]:
+        """处理排单文件"""
+        self.logger.info(f"开始处理排单Excel文件: {file_path}")
 
         try:
             # 解析基础数据
@@ -762,13 +717,429 @@ class ExcelProcessor:
             # 写入Excel文件
             self.write_excel(output_path, excel_data)
 
-            self.logger.info(f"Excel文件处理完成: {output_path}")
+            self.logger.info(f"排单Excel文件处理完成: {output_path}")
             return output_path, len(processed_data)
 
-        except ExcelProcessingError:
-            raise  # 重新抛出带有详细信息的自定义异常
         except Exception as e:
-            self.logger.error(f"处理Excel文件时发生未知错误: {str(e)}")
-            raise ExcelProcessingError(
-                f"处理Excel文件失败，错误详情：{str(e)}，请检查文件格式或联系技术支持"
+            self.logger.error(f"处理排单Excel文件时发生错误: {str(e)}")
+            raise ExcelProcessingError(f"处理排单Excel文件失败: {str(e)}")
+
+    def process_reimbursement_file(
+        self, file_path: str, user: User = None
+    ) -> Tuple[str, int]:
+        """处理报销文件"""
+        self.logger.info(f"开始处理报销Excel文件: {file_path}")
+
+        try:
+            # 解析费用代码映射表
+            fee_type_mapping = self.parse_reimbursement_fee_mapping(file_path)
+
+            # 解析顶部信息（报销人、日期、银行等）
+            top_infos = self.parse_reimbursement_top_info(file_path)
+
+            # 解析基础报销数据
+            base_data = self.parse_reimbursement_base_data(file_path, len(top_infos))
+
+            # 处理报销数据，按报销人分组生成会计分录
+            result_data = self.process_reimbursement_data(
+                top_infos, base_data, fee_type_mapping, user
             )
+
+            # 生成输出文件路径
+            now = datetime.datetime.now()
+            timestamp = now.strftime("%Y%m%d_%H%M%S")
+            output_filename = f"报销_{timestamp}.xlsx"
+            output_path = os.path.join(settings.MEDIA_ROOT, "outputs", output_filename)
+
+            # 确保输出目录存在
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            # 写入Excel文件
+            self.write_reimbursement_excel(output_path, result_data)
+
+            self.logger.info(f"报销Excel文件处理完成: {output_path}")
+            return output_path, len(result_data)
+
+        except Exception as e:
+            self.logger.error(f"处理报销Excel文件时发生错误: {str(e)}")
+            raise ExcelProcessingError(f"处理报销Excel文件失败: {str(e)}")
+
+    def parse_reimbursement_fee_mapping(self, file_path: str) -> Dict[str, str]:
+        """解析报销文件中的费用代码映射表"""
+        try:
+            mapping = {}
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+
+            # 读取主费用代码表
+            sheet_name = "核算项目_费用代码"
+            if sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                # 解析费用代码映射关系：费用代码 -> 科目名称
+                for row in sheet.iter_rows(
+                    min_row=2, values_only=True, max_col=3
+                ):  # 跳过表头
+                    if row[2] and row[1]:  # 费用代码和科目名称都不为空
+                        fee_code = str(row[2]).strip()
+                        fee_name = str(row[1]).strip()
+                        mapping[fee_code] = fee_name
+
+            # 读取无项目费用代码表
+            sheet_name_no_project = "核算项目_费用代码无项目"
+            if sheet_name_no_project in wb.sheetnames:
+                sheet = wb[sheet_name_no_project]
+                # 解析费用代码映射关系：费用代码 -> 科目名称
+                for row in sheet.iter_rows(
+                    min_row=2, values_only=True, max_col=3
+                ):  # 跳过表头
+                    if row[2] and row[1]:  # 费用代码和科目名称都不为空
+                        fee_code = str(row[2]).strip()
+                        fee_name = str(row[1]).strip()
+                        # 如果已经存在，不覆盖（优先使用主表的数据）
+                        if fee_code not in mapping:
+                            mapping[fee_code] = fee_name
+
+            wb.close()
+            self.logger.info(f"成功加载费用代码映射表，共 {len(mapping)} 项")
+            return mapping
+
+        except Exception as e:
+            self.logger.warning(
+                f"解析费用代码映射表错误: {str(e)}，将使用费用别称作为费用类型"
+            )
+            return {}
+
+    def parse_reimbursement_top_info(self, file_path: str) -> List[Dict[str, Any]]:
+        """解析报销文件顶部信息"""
+        try:
+            result = []
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+
+            # 报销文件的工作表名
+            sheet_name = "报销  (每日)"
+            if sheet_name not in wb.sheetnames:
+                raise ExcelProcessingError(f"工作表 '{sheet_name}' 不存在")
+
+            sheet = wb[sheet_name]
+
+            # 解析顶部信息行（以"日期"开头的行）
+            for row in sheet.iter_rows(min_row=1, values_only=True, max_col=16):
+                if row[0] == "日期":
+                    data = {
+                        "date": row[1],
+                        "person": row[3],
+                        "bank": row[5],
+                        "bankCode": row[7],
+                        "summary": row[9],
+                    }
+                    result.append(data)
+                else:
+                    if result:  # 如果已经找到了数据，遇到非"日期"行就停止
+                        break
+
+            wb.close()
+            return result
+
+        except Exception as e:
+            raise ExcelProcessingError(f"解析报销顶部信息错误: {str(e)}")
+
+    def parse_reimbursement_base_data(
+        self, file_path: str, top_count: int
+    ) -> List[Dict[str, Any]]:
+        """解析报销基础数据"""
+        try:
+            result = []
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+
+            sheet_name = "报销  (每日)"
+            sheet = wb[sheet_name]
+
+            # 从第4行开始解析基础数据（第3行是表头）
+            start_row = 4
+
+            for row in sheet.iter_rows(min_row=start_row, values_only=True, max_col=16):
+                # 解析报销明细：报销人、部门代码、项目简称、备注、费用别称、备注、费用别称、费用类型、费用代码、金额、摘要、部门+项目
+                if row[0] is None:  # 如果报销人为空，跳过
+                    continue
+
+                dic = {
+                    "person": row[0],  # 报销人
+                    "department": row[1],  # 部门代码
+                    "project": row[2],  # 项目简称
+                    "remark": row[3],  # 备注
+                    "feeAlias": row[4],  # 费用别称
+                    "feeType": row[4],  # 费用类型（使用费用别称）
+                    "feeCode": row[6],  # 费用代码
+                    "amount": row[7],  # 金额
+                    "summary": row[8],  # 摘要
+                    "departmentProject": row[9] if len(row) > 9 else "",  # 部门+项目
+                }
+
+                # 如果关键字段都为空，跳过这行
+                if (dic["person"] is None or dic["person"] == "") and (
+                    dic["amount"] is None or dic["amount"] == 0
+                ):
+                    continue
+
+                # 检查部门+项目是否为空或出错
+                dept_project = dic["departmentProject"]
+                if (
+                    dept_project is None
+                    or dept_project == ""
+                    or str(dept_project).startswith("#")
+                ):
+                    if dic["project"] is not None and dic["project"] != "":
+                        # 如果项目不为空但部门+项目为空，给出警告但继续处理
+                        self.logger.warning(
+                            f"报销人 {dic['person']} 的项目 {dic['project']} 部门+项目字段为空或有错误: {dept_project}"
+                        )
+                        dic["departmentProject"] = ""  # 设为空字符串以便后续处理
+
+                result.append(dic)
+
+            wb.close()
+            return result
+
+        except Exception as e:
+            raise ExcelProcessingError(f"解析报销基础数据错误: {str(e)}")
+
+    def process_reimbursement_data(
+        self,
+        top_infos: List[Dict[str, Any]],
+        base_data: List[Dict[str, Any]],
+        fee_type_mapping: Dict[str, str],
+        user: User = None,
+    ) -> List[Dict[str, Any]]:
+        """处理报销数据，生成会计分录"""
+        try:
+            result = []
+
+            if not top_infos:
+                raise ExcelProcessingError("未找到报销人信息")
+
+            date = top_infos[0]["date"]
+            person_index = 1
+
+            # 按报销人分组处理
+            for top_info in top_infos:
+                index = 0
+                total_amount = 0
+                person = top_info["person"]
+
+                # 处理该报销人的所有明细
+                for item in base_data:
+                    if (
+                        item["person"] is None
+                        or item["person"] == ""
+                        or person != item["person"]
+                    ):
+                        continue
+
+                    # 确保金额格式正确
+                    amount = float(item["amount"]) if item["amount"] else 0
+                    item["amount"] = round(amount, 2)
+                    total_amount += item["amount"]
+                    total_amount = round(total_amount, 2)
+
+                    # 生成费用明细的会计分录（借方）
+                    single_data = self.gen_reimbursement_debit_row(
+                        user, item, index, date, person_index, fee_type_mapping
+                    )
+                    result.extend(single_data)
+                    index += 1
+
+                # 生成银行支付的会计分录（贷方）
+                if total_amount > 0:
+                    last_row = self.gen_reimbursement_credit_row(
+                        user,
+                        top_info,
+                        base_data,
+                        index,
+                        date,
+                        person_index,
+                        total_amount,
+                    )
+                    result.extend(last_row)
+
+                person_index += 1
+
+            return result
+
+        except Exception as e:
+            raise ExcelProcessingError(f"处理报销数据错误: {str(e)}")
+
+    def gen_reimbursement_debit_row(
+        self,
+        user: Any,
+        item: Dict[str, Any],
+        index: int,
+        date: Any,
+        person_index: int,
+        fee_type_mapping: Dict[str, str],
+    ) -> List[Dict[str, Any]]:
+        """生成报销费用的借方分录"""
+        real_date = self.get_real_date(date)
+
+        # 基础数据
+        base_info = {
+            "FDate": real_date.strftime("%Y-%m-%d"),
+            "FYear": real_date.strftime("%Y"),
+            "FPeriod": real_date.strftime("%m"),
+            "FGroupID": "记",
+            "FNumber": person_index,
+            "FCurrencyNum": "RMB",
+            "FCurrencyName": "人民币",
+            "FPreparerID": get_prepared_by_display_name(user),
+            "FCheckerID": "NONE",
+            "FApproveID": "NONE",
+            "FCashierID": "NONE",
+            "FHandler": "",
+            "FSettleTypeID": "*",
+            "FSettleNo": "",
+            "FQuantity": 0,
+            "FMeasureUnitID": "*",
+            "FUnitPrice": 0,
+            "FReference": "",
+            "FTransDate": real_date.strftime("%Y-%m-%d"),
+            "FTransNo": "",
+            "FAttachments": 0,
+            "FSerialNum": 1,
+            "FObjectName": "",
+            "FParameter": "",
+            "FExchangeRate": 1,
+            "FPosted": 0,
+            "FInternalInd": "",
+            "FCashFlow": "",
+        }
+
+        # 获取正确的费用类型名称
+        fee_code = str(item["feeCode"]) if item["feeCode"] else ""
+        fee_name = fee_type_mapping.get(
+            fee_code, item["feeType"] if item["feeType"] else ""
+        )
+
+        # 费用明细行（借方）
+        debit_row = {
+            **base_info,
+            "FAccountNum": fee_code,
+            "FAccountName": fee_name,
+            "FAmountFor": item["amount"],
+            "FDebit": item["amount"],
+            "FCredit": 0,
+            "FExplanation": str(date) + (item["summary"] if item["summary"] else ""),
+            "FEntryID": index,
+            "FItem": item["departmentProject"] if item["departmentProject"] else "",
+        }
+
+        return [debit_row]
+
+    def gen_reimbursement_credit_row(
+        self,
+        user: Any,
+        top_info: Dict[str, Any],
+        base_data: List[Dict[str, Any]],
+        index: int,
+        date: Any,
+        person_index: int,
+        total_amount: float,
+    ) -> List[Dict[str, Any]]:
+        """生成银行支付的贷方分录"""
+        real_date = self.get_real_date(date)
+
+        # 基础数据
+        base_info = {
+            "FDate": real_date.strftime("%Y-%m-%d"),
+            "FYear": real_date.strftime("%Y"),
+            "FPeriod": real_date.strftime("%m"),
+            "FGroupID": "记",
+            "FNumber": person_index,
+            "FCurrencyNum": "RMB",
+            "FCurrencyName": "人民币",
+            "FPreparerID": get_prepared_by_display_name(user),
+            "FCheckerID": "NONE",
+            "FApproveID": "NONE",
+            "FCashierID": "NONE",
+            "FHandler": "",
+            "FSettleTypeID": "*",
+            "FSettleNo": "",
+            "FQuantity": 0,
+            "FMeasureUnitID": "*",
+            "FUnitPrice": 0,
+            "FReference": "",
+            "FTransDate": real_date.strftime("%Y-%m-%d"),
+            "FTransNo": "",
+            "FAttachments": 0,
+            "FSerialNum": 1,
+            "FObjectName": "",
+            "FParameter": "",
+            "FExchangeRate": 1,
+            "FPosted": 0,
+            "FInternalInd": "",
+            "FCashFlow": "",
+        }
+
+        # 银行支付行（贷方）
+        credit_row = {
+            **base_info,
+            "FAccountNum": top_info["bankCode"],
+            "FAccountName": top_info["bank"],
+            "FAmountFor": total_amount,
+            "FDebit": 0,
+            "FCredit": total_amount,
+            "FExplanation": str(date) + top_info["summary"],
+            "FEntryID": index,
+            "FItem": "",
+        }
+
+        return [credit_row]
+
+    def write_reimbursement_excel(
+        self, excel_file: str, data: List[Dict[str, Any]]
+    ) -> None:
+        """写入报销Excel文件"""
+        try:
+            workbook = xlsxwriter.Workbook(excel_file)
+
+            # 写入schema工作表
+            worksheet = workbook.add_worksheet("t_Schema")
+
+            # 尝试读取schema文件
+            schema_file_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "t_Schema.json"
+            )
+            try:
+                with open(schema_file_path, "r", encoding="utf-8") as f:
+                    schema = json.load(f)
+            except FileNotFoundError:
+                self.logger.warning("t_Schema.json 文件未找到，使用空schema")
+                schema = []
+
+            # 写入schema表头
+            for i, header in enumerate(SCHEMA_HEADERS):
+                worksheet.write(0, i, header)
+
+            # 写入schema数据
+            for i, schema_item in enumerate(schema):
+                for j, header in enumerate(SCHEMA_HEADERS):
+                    if header in schema_item:
+                        worksheet.write(i + 1, j, schema_item[header])
+
+            # 写入数据工作表
+            worksheet = workbook.add_worksheet("Page1")
+
+            # 写入数据表头
+            for i, header in enumerate(EXCEL_HEADERS):
+                worksheet.write(0, i, header)
+
+            # 写入数据
+            for i, row_data in enumerate(data):
+                for j, header in enumerate(EXCEL_HEADERS):
+                    if header == "FAmountFor":
+                        # FAmountFor列使用求和公式
+                        worksheet.write(i + 1, j, f"=SUM(K{i + 2}+L{i + 2})")
+                    elif header in row_data:
+                        worksheet.write(i + 1, j, row_data[header])
+
+            workbook.close()
+
+        except Exception as e:
+            raise ExcelProcessingError(f"写入报销Excel文件错误: {str(e)}")

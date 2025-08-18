@@ -18,9 +18,16 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import HttpResponse
 from rest_framework.routers import DefaultRouter
 from finance_app import views
 from finance_app import auth_views
+
+
+def health_check(request):
+    """健康检查端点"""
+    return HttpResponse("healthy", content_type="text/plain")
+
 
 # 创建API路由器
 api_router = DefaultRouter()
@@ -28,6 +35,7 @@ api_router.register(r"records", views.FinanceRecordViewSet, basename="financerec
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("health/", health_check, name="health_check"),  # 健康检查端点
     path("api/finance/", include(api_router.urls)),  # API路由
     # 认证相关API
     path("api/auth/login/", auth_views.login_api, name="login_api"),

@@ -7,6 +7,9 @@ class FinanceRecordSerializer(serializers.ModelSerializer):
 
     file_size_display = serializers.SerializerMethodField()
     output_file_size_display = serializers.SerializerMethodField()
+    process_type_display = serializers.CharField(
+        source="get_process_type_display", read_only=True
+    )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     upload_time_display = serializers.DateTimeField(
         source="upload_time", format="%Y-%m-%d %H:%M:%S", read_only=True
@@ -18,6 +21,8 @@ class FinanceRecordSerializer(serializers.ModelSerializer):
             "id",
             "filename",
             "file_path",
+            "process_type",
+            "process_type_display",
             "upload_time",
             "upload_time_display",
             "status",
@@ -81,6 +86,10 @@ class FileUploadSerializer(serializers.Serializer):
     """文件上传序列化器"""
 
     file = serializers.FileField()
+    process_type = serializers.ChoiceField(
+        choices=[("payment", "排单处理"), ("reimbursement", "报销处理")],
+        default="payment",
+    )
 
     def validate_file(self, value):
         """验证上传的文件"""

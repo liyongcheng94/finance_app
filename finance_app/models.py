@@ -4,6 +4,27 @@ from django.contrib.auth.models import User
 import os
 
 
+class UserProfile(models.Model):
+    """用户扩展信息模型"""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="profile", verbose_name="用户账号"
+    )
+    display_name = models.CharField(
+        max_length=50, verbose_name="用户名", help_text="用于显示的用户名称，如：陈丽玲"
+    )
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "user_profiles"
+        verbose_name = "用户扩展信息"
+        verbose_name_plural = "用户扩展信息"
+
+    def __str__(self):
+        return f"{self.user.username} - {self.display_name}"
+
+
 class FinanceRecord(models.Model):
     """财务记录模型"""
 
@@ -13,15 +34,27 @@ class FinanceRecord(models.Model):
         ("failed", "失败"),
     ]
 
-    # 用户关联
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, verbose_name="上传用户", null=True, blank=True
-    )
+    PROCESS_TYPE_CHOICES = [
+        ("payment", "排单处理"),
+        ("reimbursement", "报销处理"),
+    ]
 
     # 基本信息
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="finance_records",
+        verbose_name="用户",
+    )
     upload_time = models.DateTimeField(default=timezone.now, verbose_name="上传时间")
     filename = models.CharField(max_length=255, verbose_name="原始文件名")
     file_path = models.FileField(upload_to="uploads/", verbose_name="上传文件路径")
+    process_type = models.CharField(
+        max_length=20,
+        choices=PROCESS_TYPE_CHOICES,
+        default="payment",
+        verbose_name="处理类型",
+    )
 
     # 处理状态
     status = models.CharField(

@@ -25,21 +25,33 @@ class FinanceRecordViewSet(viewsets.ModelViewSet):
     queryset = FinanceRecord.objects.all()
     serializer_class = FinanceRecordSerializer
     parser_classes = (MultiPartParser, FormParser)
-    permission_classes = [IsAuthenticated]  # 添加认证要求
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """获取查询集，支持状态过滤，只返回当前用户的记录"""
-        # 如果用户已认证，只显示他们的记录
-        if self.request.user.is_authenticated:
-            queryset = FinanceRecord.objects.filter(user=self.request.user)
-        else:
-            # 如果未认证，返回空查询集
-            queryset = FinanceRecord.objects.none()
+        """获取查询集，只返回当前用户的记录"""
+        queryset = FinanceRecord.objects.filter(user=self.request.user)
 
+        # 状态过滤
         status_filter = self.request.query_params.get("status", None)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        return queryset
+
+        # 处理类型过滤
+        process_type_filter = self.request.query_params.get("process_type", None)
+        if process_type_filter:
+            queryset = queryset.filter(process_type=process_type_filter)
+
+        # 日期过滤
+        date_from = self.request.query_params.get("date_from", None)
+        if date_from:
+            queryset = queryset.filter(upload_time__date__gte=date_from)
+
+        date_to = self.request.query_params.get("date_to", None)
+        if date_to:
+            queryset = queryset.filter(upload_time__date__lte=date_to)
+
+        # 按上传时间倒序排列
+        return queryset.order_by("-upload_time")
 
     @action(
         detail=False, methods=["post"], parser_classes=[MultiPartParser, FormParser]
@@ -53,12 +65,14 @@ class FinanceRecordViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         uploaded_file = serializer.validated_data["file"]
+        process_type = serializer.validated_data["process_type"]
 
         # 创建财务记录
         finance_record = FinanceRecord.objects.create(
-            user=request.user,  # 添加用户关联
+            user=request.user,
             filename=uploaded_file.name,
             file_path=uploaded_file,
+            process_type=process_type,
             status="pending",
         )
 
@@ -75,12 +89,15 @@ class FinanceRecordViewSet(viewsets.ModelViewSet):
             processor = ExcelProcessor()
 
             # 添加处理开始日志
+            process_type_display = "排单" if process_type == "payment" else "报销"
             ProcessingLog.objects.create(
-                record=finance_record, level="INFO", message="开始处理Excel文件..."
+                record=finance_record,
+                level="INFO",
+                message=f"开始处理{process_type_display}Excel文件...",
             )
 
             output_path, record_count = processor.process_excel_file(
-                finance_record.file_path.path
+                finance_record.file_path.path, process_type
             )
             processing_time = time.time() - start_time
 
@@ -221,17 +238,13 @@ class FinanceRecordViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+@login_required(login_url="/auth/login/")
 def index(request):
     """首页视图"""
     return render(request, "index.html")
 
 
-@login_required
-def history_page(request):
-    """历史记录页面"""
-    return render(request, "history.html")
-
-
+@login_required(login_url="/auth/login/")
 def history(request):
     """历史记录页面"""
     return render(request, "history.html")

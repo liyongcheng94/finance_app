@@ -12,7 +12,7 @@ app_name = "finance_app"
 urlpatterns = [
     # 前端页面路由
     path("", views.index, name="index"),
-    path("history/", views.history_page, name="history"),
+    path("history/", views.history, name="history"),
     # API路由（当通过api/finance/访问时使用）
     path("", include(router.urls)),
 ]
